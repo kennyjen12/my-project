@@ -1,0 +1,972 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>QuantFi MTD Dashboard &ndash; May 2026</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.0/dist/chart.umd.js" integrity="sha384-iU8HYtnGQ8Cy4zl7gbNMOhsDTTKX02BTXptVP/vqAWIaTfM7isw76iyZCsjL2eVi" crossorigin="anonymous"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/gridjs@5.0.2/dist/theme/mermaid.min.css">
+<script src="https://cdn.jsdelivr.net/npm/gridjs@5.0.2/dist/gridjs.umd.js" integrity="sha384-/XXDzxe4FsGiAe50i/u9pY/Vy/uX654MHB1xoc1BJNnH1WXHhqHga9g3q5tF4gj7" crossorigin="anonymous"></script>
+<style>
+  :root { color-scheme: light; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f8f9fa; color: #1a1a1a; font-size: 14px; }
+  
+  header { background: #fff; border-bottom: 1px solid #e5e7eb; padding: 16px 24px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 100; }
+  header h1 { font-size: 16px; font-weight: 600; color: #111; }
+  header .meta { font-size: 12px; color: #6b7280; }
+  .badge { display: inline-flex; align-items: center; gap: 6px; background: #f0fdf4; color: #15803d; border: 1px solid #bbf7d0; border-radius: 20px; padding: 3px 10px; font-size: 11px; font-weight: 500; }
+
+  main { max-width: 1400px; margin: 0 auto; padding: 24px; }
+
+  /* KPI grid */
+  .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin-bottom: 28px; }
+  .kpi { background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; padding: 16px; }
+  .kpi .label { font-size: 11px; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+  .kpi .value { font-size: 22px; font-weight: 700; color: #111; }
+  .kpi .sub { font-size: 11px; color: #9ca3af; margin-top: 4px; }
+  .kpi.green { border-left: 3px solid #22c55e; }
+  .kpi.blue { border-left: 3px solid #3b82f6; }
+  .kpi.amber { border-left: 3px solid #f59e0b; }
+  .kpi.purple { border-left: 3px solid #8b5cf6; }
+  .kpi.red { border-left: 3px solid #ef4444; }
+
+  /* Sections */
+  .section { background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; margin-bottom: 20px; overflow: hidden; }
+  .section-header { padding: 14px 20px; border-bottom: 1px solid #f3f4f6; display: flex; align-items: center; justify-content: space-between; cursor: pointer; user-select: none; }
+  .section-header h2 { font-size: 13px; font-weight: 600; color: #374151; }
+  .section-header .toggle { font-size: 11px; color: #9ca3af; }
+  .section-body { padding: 16px 20px; }
+  .section-body.collapsed { display: none; }
+
+  /* Charts row */
+  .charts-row { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; }
+  .chart-wrap { background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; padding: 16px; }
+  .chart-wrap h3 { font-size: 12px; font-weight: 600; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 12px; }
+  canvas { max-height: 240px; }
+
+  /* Tables */
+  .table-wrap { overflow-x: auto; }
+  table.dash { width: 100%; border-collapse: collapse; font-size: 13px; }
+  table.dash th { text-align: right; font-weight: 600; color: #6b7280; font-size: 11px; text-transform: uppercase; letter-spacing: 0.4px; padding: 8px 12px; background: #f9fafb; border-bottom: 1px solid #e5e7eb; }
+  table.dash th:first-child { text-align: left; }
+  table.dash td { padding: 10px 12px; text-align: right; border-bottom: 1px solid #f3f4f6; color: #374151; }
+  table.dash td:first-child { text-align: left; font-weight: 500; color: #111; }
+  table.dash tr:hover { background: #f9fafb; }
+  table.dash tr:last-child td { border-bottom: none; }
+  .pill { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 600; }
+  .pill.green { background: #f0fdf4; color: #15803d; }
+  .pill.red { background: #fef2f2; color: #dc2626; }
+  .pill.amber { background: #fffbeb; color: #d97706; }
+  .wow-up { color: #16a34a; font-size: 11px; }
+  .wow-down { color: #dc2626; font-size: 11px; }
+  .wow-flat { color: #9ca3af; font-size: 11px; }
+
+  /* Drill-down panel */
+  .drill-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.3); z-index: 200; cursor: pointer; }
+  .drill-panel { position: fixed; right: 0; top: 0; bottom: 0; width: 520px; background: #fff; box-shadow: -4px 0 24px rgba(0,0,0,0.12); z-index: 201; display: none; flex-direction: column; }
+  .drill-panel.open { display: flex; }
+  .drill-overlay.open { display: block; }
+  .drill-header { padding: 16px 20px; border-bottom: 1px solid #e5e7eb; display: flex; align-items: center; justify-content: space-between; }
+  .drill-header h3 { font-size: 14px; font-weight: 600; }
+  .drill-header button { background: none; border: none; font-size: 18px; cursor: pointer; color: #6b7280; line-height: 1; }
+  .drill-body { flex: 1; overflow-y: auto; padding: 16px 20px; }
+
+  /* Anomalies */
+  .anomaly-list { list-style: none; }
+  .anomaly-list li { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid #f3f4f6; font-size: 13px; }
+  .anomaly-list li:last-child { border-bottom: none; }
+  .anomaly-icon { width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 13px; flex-shrink: 0; }
+  .anomaly-icon.warn { background: #fffbeb; }
+  .anomaly-icon.danger { background: #fef2f2; }
+
+  /* Adjustments */
+  .adj-table { width: 100%; }
+  .adj-table td { padding: 6px 8px; vertical-align: middle; }
+  .adj-table input { border: 1px solid #e5e7eb; border-radius: 6px; padding: 5px 8px; font-size: 13px; width: 100%; }
+  .adj-table input:focus { outline: none; border-color: #3b82f6; }
+  .btn-add { background: #f3f4f6; border: 1px solid #e5e7eb; border-radius: 6px; padding: 6px 14px; font-size: 12px; cursor: pointer; color: #374151; }
+  .btn-add:hover { background: #e5e7eb; }
+
+  /* Sources panel */
+  .sources-toggle { font-size: 12px; color: #3b82f6; cursor: pointer; margin-top: 20px; display: inline-flex; align-items: center; gap: 4px; }
+  .sources-panel { display: none; margin-top: 12px; background: #f8faff; border: 1px solid #dbeafe; border-radius: 8px; padding: 16px; font-size: 12px; color: #374151; }
+  .sources-panel.open { display: block; }
+  .sources-panel pre { background: #fff; border: 1px solid #e5e7eb; border-radius: 6px; padding: 10px; overflow-x: auto; font-size: 11px; line-height: 1.5; max-height: 280px; }
+  .sources-panel h4 { font-size: 11px; font-weight: 700; text-transform: uppercase; color: #6b7280; letter-spacing: 0.5px; margin-bottom: 8px; margin-top: 14px; }
+  .sources-panel h4:first-child { margin-top: 0; }
+  .calc-step { display: flex; align-items: flex-start; gap: 8px; margin-bottom: 6px; }
+  .calc-step .step-num { background: #dbeafe; color: #1d4ed8; border-radius: 50%; width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; flex-shrink: 0; }
+  
+  @media (max-width: 768px) {
+    .charts-row { grid-template-columns: 1fr; }
+    .drill-panel { width: 100%; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>QuantFi MTD Dashboard</h1>
+    <div class="meta" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+      <span id="date-label">May 1&ndash;29, 2026</span>
+      <span style="color:#d1d5db">|</span>
+      <label style="font-size:12px;color:#6b7280">From <input type="date" id="range-start" value="2026-05-01" style="border:1px solid #e5e7eb;border-radius:4px;padding:2px 6px;font-size:12px;color:#374151;margin-left:4px;"></label>
+      <label style="font-size:12px;color:#6b7280">To <input type="date" id="range-end" value="2026-05-29" style="border:1px solid #e5e7eb;border-radius:4px;padding:2px 6px;font-size:12px;color:#374151;margin-left:4px;"></label>
+      <button onclick="doRefresh()" id="refresh-btn" style="background:#3b82f6;color:#fff;border:none;border-radius:6px;padding:4px 12px;font-size:12px;font-weight:600;cursor:pointer;">&#8635; Refresh Data</button>
+      <span id="refresh-status" style="font-size:11px;color:#9ca3af;"></span>
+    </div>
+  </div>
+  <span class="badge">[LIVE] Live Data</span>
+</header>
+
+<main>
+<div style="background:#fff;border-bottom:1px solid #e5e7eb;padding:0 24px;display:flex;gap:0;position:sticky;top:57px;z-index:99;">
+  <button id="tab-dashboard" onclick="showTab('dashboard')" style="padding:10px 18px;border:none;background:none;border-bottom:3px solid #3b82f6;font-size:13px;font-weight:600;color:#3b82f6;cursor:pointer;">Dashboard</button>
+  <button id="tab-transactions" onclick="showTab('transactions')" style="padding:10px 18px;border:none;background:none;border-bottom:3px solid transparent;font-size:13px;font-weight:500;color:#6b7280;cursor:pointer;">Raw Transactions (299)</button>
+</div>
+<div id="view-dashboard">
+
+
+<!-- KPIs -->
+<div class="kpi-grid" id="kpi-grid"></div>
+
+<!-- Charts -->
+<!-- Adjustments -->
+<div class="section">
+  <div class="section-header" onclick="toggleSection('adj')">
+    <h2>[EDIT] Adjustments</h2>
+    <span class="toggle" id="adj-toggle">v collapse</span>
+  </div>
+  <div class="section-body" id="adj-body">
+    <p style="font-size:12px;color:#6b7280;margin-bottom:12px;">Add revenue/cost adjustments. Edits persist in localStorage.</p>
+    <table class="dash" style="margin-bottom:8px;">
+      <thead><tr><th style="text-align:left">Description</th><th>Revenue Adj ($)</th><th>Cost Adj ($)</th><th></th></tr></thead>
+      <tbody id="adj-rows"></tbody>
+    </table>
+    <button class="btn-add" onclick="addAdjRow()">+ Add row</button>
+    <div style="margin-top:12px;padding:10px 14px;background:#f9fafb;border-radius:8px;font-size:12px;color:#374151;">
+      Adj. Revenue: <strong id="adj-rev-total">$0</strong> &nbsp;|&nbsp;
+      Adj. Cost: <strong id="adj-cost-total">$0</strong> &nbsp;|&nbsp;
+      Adj. Margin: <strong id="adj-margin-total">$0</strong>
+    </div>
+  </div>
+</div>
+<div class="charts-row">
+  <div class="chart-wrap">
+    <h3>Revenue by Project</h3>
+    <canvas id="chart-project-rev"></canvas>
+  </div>
+  <div class="chart-wrap">
+    <h3>Hours by Person</h3>
+    <canvas id="chart-person-hours"></canvas>
+  </div>
+</div>
+
+<!-- By Project -->
+<div class="section">
+  <div class="section-header" onclick="toggleSection('proj')">
+    <h2>[PROJ] By Project</h2>
+    <span class="toggle" id="proj-toggle">v collapse</span>
+  </div>
+  <div class="section-body" id="proj-body">
+    <div class="table-wrap"><table class="dash" id="proj-table"></table></div>
+  </div>
+</div>
+
+<!-- By Person -->
+<div class="section">
+  <div class="section-header" onclick="toggleSection('person')">
+    <h2>[PERSON] By Person</h2>
+    <span class="toggle" id="person-toggle">v collapse</span>
+  </div>
+  <div class="section-body" id="person-body">
+    <div class="table-wrap"><table class="dash" id="person-table"></table></div>
+  </div>
+</div>
+
+<!-- Anomalies -->
+<div class="section">
+  <div class="section-header" onclick="toggleSection('anom')">
+    <h2>[!] Anomalies</h2>
+    <span class="toggle" id="anom-toggle">v collapse</span>
+  </div>
+  <div class="section-body" id="anom-body">
+    <ul class="anomaly-list" id="anom-list"></ul>
+  </div>
+</div>
+
+
+<!-- Sources -->
+<span class="sources-toggle" onclick="toggleSources()">[SRC] Show data sources + calculation trail</span>
+<div class="sources-panel" id="sources-panel"></div>
+
+
+</div>
+<div id="view-transactions" style="display:none;max-width:1400px;margin:0 auto;padding:24px;">
+  <div style="background:#fff;border:1px solid #e5e7eb;border-radius:10px;overflow:hidden;">
+    <div style="padding:14px 20px;border-bottom:1px solid #f3f4f6;display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+      <h2 style="font-size:13px;font-weight:600;color:#374151;margin:0;">Raw Time Entries — May 1-29, 2026</h2>
+      <span style="font-size:12px;color:#6b7280;">299 entries · from toggl_time_entries() MCP call</span>
+      <div style="margin-left:auto;display:flex;gap:8px;">
+        <input id="txn-search" type="text" placeholder="Search description, person, project..." 
+          style="border:1px solid #e5e7eb;border-radius:6px;padding:5px 10px;font-size:12px;width:260px;"
+          oninput="filterTxns()">
+        <select id="txn-filter-person" onchange="filterTxns()" style="border:1px solid #e5e7eb;border-radius:6px;padding:5px 8px;font-size:12px;">
+          <option value="">All People</option>
+          <option value="Alexis">Alexis</option><option value="Austin">Austin</option><option value="Brian Stanley">Brian Stanley</option><option value="Byoon">Byoon</option><option value="Christian">Christian</option><option value="Jacob">Jacob</option><option value="John">John</option><option value="Joseph">Joseph</option><option value="Kenny">Kenny</option><option value="Miko">Miko</option><option value="Patrick">Patrick</option><option value="Paul">Paul</option>
+        </select>
+        <select id="txn-filter-project" onchange="filterTxns()" style="border:1px solid #e5e7eb;border-radius:6px;padding:5px 8px;font-size:12px;">
+          <option value="">All Projects</option>
+          <option value="Berg">Berg</option><option value="Bottlecapps">Bottlecapps</option><option value="Chew">Chew</option><option value="Everbloom">Everbloom</option><option value="Fabrik">Fabrik</option><option value="Fexa">Fexa</option><option value="Hyer">Hyer</option><option value="Konscious">Konscious</option><option value="QuantFi">QuantFi</option><option value="Red Apple Fireworks">Red Apple Fireworks</option><option value="Treville">Treville</option><option value="VRS">VRS</option>
+        </select>
+        <select id="txn-filter-billable" onchange="filterTxns()" style="border:1px solid #e5e7eb;border-radius:6px;padding:5px 8px;font-size:12px;">
+          <option value="">All</option>
+          <option value="true">Billable only</option>
+          <option value="false">Unbillable only</option>
+        </select>
+      </div>
+    </div>
+    <div style="overflow-x:auto;">
+      <table class="dash" id="txn-table" style="font-size:12px;">
+        <thead>
+          <tr>
+            <th style="text-align:left">Date</th>
+            <th style="text-align:left">Person</th>
+            <th style="text-align:left">Project</th>
+            <th style="text-align:left">Description</th>
+            <th>Hours</th>
+            <th>Rate</th>
+            <th>Amount</th>
+            <th>Billable</th>
+          </tr>
+        </thead>
+        <tbody id="txn-body"></tbody>
+      </table>
+    </div>
+    <div id="txn-footer" style="padding:10px 20px;font-size:12px;color:#6b7280;border-top:1px solid #f3f4f6;display:flex;gap:20px;"></div>
+  </div>
+</div>
+</main>
+
+<!-- Drill-down -->
+<div class="drill-overlay" id="drill-overlay" onclick="closeDrill()"></div>
+<div class="drill-panel" id="drill-panel">
+  <div class="drill-header">
+    <h3 id="drill-title">Drill-down</h3>
+    <button onclick="closeDrill()" style="font-size:22px;font-weight:bold;padding:4px 10px;background:#f3f4f6;border:1px solid #e5e7eb;border-radius:6px;cursor:pointer;line-height:1;">x</button>
+  </div>
+  <div class="drill-body" id="drill-body"></div>
+</div>
+
+<script>
+//  RAW DATA FROM MCP 
+const RAW = {
+  users: [
+    {id:11390312,name:"Christian"},{id:11443332,name:"John (QFI)"},{id:12657753,name:"Austin"},
+    {id:12904722,name:"Alexis"},{id:11433743,name:"Kenny"},{id:11447457,name:"Jacob"},
+    {id:12992442,name:"Joseph"},{id:12940522,name:"Miko"},{id:12413412,name:"Patrick"},
+    {id:12767163,name:"Paul"},{id:12774763,name:"Byoon"},{id:12861146,name:"Brian Stanley"}
+  ],
+  projects: [
+    {id:206218387,name:"Hyer"},{id:213038766,name:"Everbloom"},{id:215858961,name:"Berg"},
+    {id:216893794,name:"Bottlecapps"},{id:213640418,name:"Red Apple Fireworks"},
+    {id:215700227,name:"Chew"},{id:206576167,name:"Konscious"},{id:208363068,name:"QuantFi"},
+    {id:213270889,name:"Treville"},{id:209735870,name:"Fabrik"},{id:219432326,name:"Fexa"},
+    {id:219179204,name:"VRS"}
+  ],
+  mtd: {"groups":[{"id":11390312,"sub_groups":[{"id":206218387,"seconds":21600,"rates":[{"billable_seconds":21600,"hourly_rate_in_cents":25000}]},{"id":213038766,"seconds":4500,"rates":[{"billable_seconds":4500,"hourly_rate_in_cents":0}]},{"id":215858961,"seconds":3600,"rates":[{"billable_seconds":3600,"hourly_rate_in_cents":25000}]},{"id":216893794,"seconds":6300,"rates":[{"billable_seconds":6300,"hourly_rate_in_cents":25000}]}]},{"id":11443332,"sub_groups":[{"id":206218387,"seconds":118800,"rates":[{"billable_seconds":118800,"hourly_rate_in_cents":15000}]}]},{"id":12657753,"sub_groups":[{"id":206218387,"seconds":104400,"rates":[{"billable_seconds":104400,"hourly_rate_in_cents":25000}]},{"id":213270889,"seconds":5400,"rates":[{"billable_seconds":5400,"hourly_rate_in_cents":17500}]}]},{"id":12904722,"sub_groups":[{"id":206218387,"seconds":90000,"rates":[{"billable_seconds":90000,"hourly_rate_in_cents":8000}]},{"id":208363068,"seconds":73800,"rates":[]},{"id":213640418,"seconds":172800,"rates":[{"billable_seconds":172800,"hourly_rate_in_cents":8000}]},{"id":215700227,"seconds":111600,"rates":[{"billable_seconds":111600,"hourly_rate_in_cents":10000}]}]},{"id":11433743,"sub_groups":[{"id":206576167,"seconds":25200,"rates":[{"billable_seconds":25200,"hourly_rate_in_cents":0}]},{"id":213640418,"seconds":5400,"rates":[{"billable_seconds":5400,"hourly_rate_in_cents":27500}]}]},{"id":11447457,"sub_groups":[{"id":206576167,"seconds":112500,"rates":[{"billable_seconds":112500,"hourly_rate_in_cents":0}]},{"id":209735870,"seconds":3600,"rates":[{"billable_seconds":3600,"hourly_rate_in_cents":25000}]},{"id":213640418,"seconds":71100,"rates":[{"billable_seconds":71100,"hourly_rate_in_cents":27500}]}]},{"id":12992442,"sub_groups":[{"id":208363068,"seconds":16200,"rates":[]},{"id":213038766,"seconds":53100,"rates":[{"billable_seconds":53100,"hourly_rate_in_cents":0}]},{"id":219432326,"seconds":127800,"rates":[{"billable_seconds":127800,"hourly_rate_in_cents":0}]}]},{"id":12940522,"sub_groups":[{"id":213038766,"seconds":27900,"rates":[{"billable_seconds":27900,"hourly_rate_in_cents":25000}]}]},{"id":12413412,"sub_groups":[{"id":213640418,"seconds":76500,"rates":[{"billable_seconds":76500,"hourly_rate_in_cents":17500}]}]},{"id":12767163,"sub_groups":[{"id":215700227,"seconds":22800,"rates":[{"billable_seconds":22800,"hourly_rate_in_cents":15000}]}]},{"id":12774763,"sub_groups":[{"id":215700227,"seconds":1800,"rates":[{"billable_seconds":1800,"hourly_rate_in_cents":25000}]},{"id":215858961,"seconds":38700,"rates":[{"billable_seconds":38700,"hourly_rate_in_cents":25000}]},{"id":216893794,"seconds":25200,"rates":[{"billable_seconds":25200,"hourly_rate_in_cents":25000}]}]},{"id":12861146,"sub_groups":[{"id":215858961,"seconds":53676,"rates":[{"billable_seconds":53676,"hourly_rate_in_cents":15000}]},{"id":216893794,"seconds":103516,"rates":[{"billable_seconds":77959,"hourly_rate_in_cents":10000},{"billable_seconds":25557,"hourly_rate_in_cents":15000}]},{"id":219179204,"seconds":51188,"rates":[{"billable_seconds":25408,"hourly_rate_in_cents":8000},{"billable_seconds":25780,"hourly_rate_in_cents":17500}]}]}]},
+  wow_curr: {"groups":[{"id":11390312,"sub_groups":[{"id":206218387,"seconds":7200,"rates":[{"billable_seconds":7200,"hourly_rate_in_cents":25000}]},{"id":213038766,"seconds":4500,"rates":[{"billable_seconds":4500,"hourly_rate_in_cents":0}]},{"id":215858961,"seconds":2700,"rates":[{"billable_seconds":2700,"hourly_rate_in_cents":25000}]},{"id":216893794,"seconds":1800,"rates":[{"billable_seconds":1800,"hourly_rate_in_cents":25000}]}]},{"id":12657753,"sub_groups":[{"id":206218387,"seconds":7200,"rates":[{"billable_seconds":7200,"hourly_rate_in_cents":25000}]}]},{"id":12904722,"sub_groups":[{"id":206218387,"seconds":23400,"rates":[{"billable_seconds":23400,"hourly_rate_in_cents":8000}]},{"id":208363068,"seconds":30600,"rates":[]},{"id":213640418,"seconds":18900,"rates":[{"billable_seconds":18900,"hourly_rate_in_cents":8000}]},{"id":215700227,"seconds":13500,"rates":[{"billable_seconds":13500,"hourly_rate_in_cents":10000}]}]},{"id":11433743,"sub_groups":[{"id":206576167,"seconds":7200,"rates":[{"billable_seconds":7200,"hourly_rate_in_cents":0}]}]},{"id":11447457,"sub_groups":[{"id":206576167,"seconds":27000,"rates":[{"billable_seconds":27000,"hourly_rate_in_cents":0}]},{"id":213640418,"seconds":18900,"rates":[{"billable_seconds":18900,"hourly_rate_in_cents":27500}]}]},{"id":12940522,"sub_groups":[{"id":213038766,"seconds":9000,"rates":[{"billable_seconds":9000,"hourly_rate_in_cents":25000}]}]},{"id":12774763,"sub_groups":[{"id":215858961,"seconds":17100,"rates":[{"billable_seconds":17100,"hourly_rate_in_cents":25000}]},{"id":216893794,"seconds":10800,"rates":[{"billable_seconds":10800,"hourly_rate_in_cents":25000}]}]},{"id":12861146,"sub_groups":[{"id":215858961,"seconds":16034,"rates":[{"billable_seconds":16034,"hourly_rate_in_cents":15000}]},{"id":216893794,"seconds":5400,"rates":[{"billable_seconds":5400,"hourly_rate_in_cents":15000}]},{"id":219179204,"seconds":20309,"rates":[{"billable_seconds":20309,"hourly_rate_in_cents":17500}]}]}]},
+  wow_prev: {"groups":[{"id":11390312,"sub_groups":[{"id":206218387,"seconds":12600,"rates":[{"billable_seconds":12600,"hourly_rate_in_cents":25000}]},{"id":216893794,"seconds":900,"rates":[{"billable_seconds":900,"hourly_rate_in_cents":25000}]}]},{"id":11443332,"sub_groups":[{"id":206218387,"seconds":10800,"rates":[{"billable_seconds":10800,"hourly_rate_in_cents":15000}]}]},{"id":12657753,"sub_groups":[{"id":206218387,"seconds":61200,"rates":[{"billable_seconds":61200,"hourly_rate_in_cents":25000}]}]},{"id":12904722,"sub_groups":[{"id":206218387,"seconds":22500,"rates":[{"billable_seconds":22500,"hourly_rate_in_cents":8000}]},{"id":208363068,"seconds":7200,"rates":[]},{"id":213640418,"seconds":52200,"rates":[{"billable_seconds":52200,"hourly_rate_in_cents":8000}]},{"id":215700227,"seconds":25200,"rates":[{"billable_seconds":25200,"hourly_rate_in_cents":10000}]}]},{"id":11433743,"sub_groups":[{"id":206576167,"seconds":18000,"rates":[{"billable_seconds":18000,"hourly_rate_in_cents":0}]},{"id":213640418,"seconds":5400,"rates":[{"billable_seconds":5400,"hourly_rate_in_cents":27500}]}]},{"id":11447457,"sub_groups":[{"id":206576167,"seconds":32400,"rates":[{"billable_seconds":32400,"hourly_rate_in_cents":0}]},{"id":213640418,"seconds":17100,"rates":[{"billable_seconds":17100,"hourly_rate_in_cents":27500}]}]},{"id":12992442,"sub_groups":[{"id":208363068,"seconds":9000,"rates":[]},{"id":213038766,"seconds":36000,"rates":[{"billable_seconds":36000,"hourly_rate_in_cents":0}]},{"id":219432326,"seconds":18000,"rates":[{"billable_seconds":18000,"hourly_rate_in_cents":0}]}]},{"id":12940522,"sub_groups":[{"id":213038766,"seconds":13500,"rates":[{"billable_seconds":13500,"hourly_rate_in_cents":25000}]}]},{"id":12413412,"sub_groups":[{"id":213640418,"seconds":10800,"rates":[{"billable_seconds":10800,"hourly_rate_in_cents":17500}]}]},{"id":12767163,"sub_groups":[{"id":215700227,"seconds":3600,"rates":[{"billable_seconds":3600,"hourly_rate_in_cents":15000}]}]},{"id":12861146,"sub_groups":[{"id":215858961,"seconds":8880,"rates":[{"billable_seconds":8880,"hourly_rate_in_cents":15000}]},{"id":216893794,"seconds":69551,"rates":[{"billable_seconds":59280,"hourly_rate_in_cents":10000},{"billable_seconds":10271,"hourly_rate_in_cents":15000}]},{"id":219179204,"seconds":1691,"rates":[{"billable_seconds":1691,"hourly_rate_in_cents":17500}]}]}]}
+};
+
+//  LOOKUP MAPS 
+const userMap = Object.fromEntries(RAW.users.map(u => [u.id, u.name]));
+const projMap = Object.fromEntries(RAW.projects.map(p => [p.id, p.name]));
+
+// Default cost rates ($/hr) - editable in localStorage
+const DEFAULT_COST_RATES = {
+  11390312: 75, 11443332: 50, 12657753: 60, 12904722: 45,
+  11433743: 0,  11447457: 55, 12992442: 45, 12940522: 55,
+  12413412: 55, 12767163: 50, 12774763: 60, 12861146: 65
+};
+
+function getCostRates() {
+  return getState().costRates || DEFAULT_COST_RATES;
+}
+function saveCostRates(r) { saveState({costRates: r}); }
+// State stored in GitHub — reads via API, writes directly via GitHub API
+// Token stored in localStorage (never baked into file)
+const GH_API_URL = 'https://api.github.com/repos/kennyjen12/my-project/contents/dashboards/dashboard-state.json';
+let _state = {};
+let _saveTimer = null;
+let _stateSha = null;
+
+function getGHToken() {
+  return localStorage.getItem('qf_gh_token') || '';
+}
+
+async function loadStateFromCloud() {
+  const token = getGHToken();
+  if (!token) { promptForToken(); return; }
+  try {
+    const r = await fetch(GH_API_URL, {
+      headers: { 'Authorization': 'token ' + token }
+    });
+    if (r.status === 401) { promptForToken(); return; }
+    if (r.ok) {
+      const data = await r.json();
+      _stateSha = data.sha;
+      const content = atob(data.content.replace(/\n/g,''));
+      _state = JSON.parse(content || '{}');
+      localStorage.setItem('qf_state', JSON.stringify(_state));
+    }
+  } catch(e) {
+    try { _state = JSON.parse(localStorage.getItem('qf_state') || '{}'); } catch(e2) {}
+  }
+}
+
+function promptForToken() {
+  const existing = localStorage.getItem('qf_gh_token');
+  const t = prompt('Enter GitHub token to enable saving (stored locally in your browser only):',  existing || '');
+  if (t && t.trim()) {
+    localStorage.setItem('qf_gh_token', t.trim());
+    location.reload();
+  }
+}
+
+function getState() { return _state; }
+
+function saveState(patch) {
+  Object.assign(_state, patch);
+  try { localStorage.setItem('qf_state', JSON.stringify(_state)); } catch(e) {}
+  clearTimeout(_saveTimer);
+  _saveTimer = setTimeout(() => pushStateToGitHub(), 800);
+}
+
+async function pushStateToGitHub() {
+  const token = getGHToken();
+  if (!token) return;
+  showSaveIndicator('saving');
+  try {
+    const content = btoa(unescape(encodeURIComponent(JSON.stringify(_state, null, 2))));
+    const body = { message: 'dashboard state update', content, sha: _stateSha };
+    const r = await fetch(GH_API_URL, {
+      method: 'PUT',
+      headers: { 'Authorization': 'token ' + token, 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    if (r.ok) {
+      const data = await r.json();
+      _stateSha = data.content.sha;
+      showSaveIndicator('saved');
+    } else {
+      showSaveIndicator('error');
+    }
+  } catch(e) {
+    showSaveIndicator('error');
+  }
+}
+
+function showSaveIndicator(status) {
+  let el = document.getElementById('save-indicator');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'save-indicator';
+    el.style.cssText = 'position:fixed;bottom:16px;right:16px;padding:8px 14px;border-radius:8px;font-size:12px;z-index:9999;box-shadow:0 2px 8px rgba(0,0,0,0.15);transition:background 0.3s';
+    document.body.appendChild(el);
+  }
+  if (status === 'saving') {
+    el.style.background = '#f59e0b'; el.style.color = '#fff';
+    el.textContent = '⏳ Saving to GitHub...';
+  } else if (status === 'saved') {
+    el.style.background = '#16a34a'; el.style.color = '#fff';
+    el.textContent = '✓ Saved to GitHub';
+  } else {
+    el.style.background = '#dc2626'; el.style.color = '#fff';
+    el.textContent = '✗ Save failed';
+  }
+  el.style.display = 'block';
+  if (status !== 'saving') setTimeout(() => { if(el) el.style.display = 'none'; }, 3000);
+}
+let _state = {};
+let _saveTimer = null;
+let _stateSha = null;
+
+async function loadStateFromCloud() {
+  try {
+    // Get file with SHA (needed for writes)
+    const r = await fetch(GH_API_URL, {
+      headers: { 'Authorization': 'token ' + GH_TOKEN }
+    });
+    if (r.ok) {
+      const data = await r.json();
+      _stateSha = data.sha;
+      const content = atob(data.content.replace(/\n/g,''));
+      _state = JSON.parse(content || '{}');
+      localStorage.setItem('qf_state', JSON.stringify(_state));
+    }
+  } catch(e) {
+    try { _state = JSON.parse(localStorage.getItem('qf_state') || '{}'); } catch(e2) {}
+  }
+}
+
+function getState() { return _state; }
+
+function saveState(patch) {
+  Object.assign(_state, patch);
+  try { localStorage.setItem('qf_state', JSON.stringify(_state)); } catch(e) {}
+  clearTimeout(_saveTimer);
+  _saveTimer = setTimeout(() => pushStateToGitHub(), 800);
+}
+
+async function pushStateToGitHub() {
+  showSaveIndicator('saving');
+  try {
+    const content = btoa(unescape(encodeURIComponent(JSON.stringify(_state, null, 2))));
+    const body = { message: 'dashboard state update', content, sha: _stateSha };
+    const r = await fetch(GH_API_URL, {
+      method: 'PUT',
+      headers: { 'Authorization': 'token ' + GH_TOKEN, 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    if (r.ok) {
+      const data = await r.json();
+      _stateSha = data.content.sha;
+      showSaveIndicator('saved');
+    } else {
+      showSaveIndicator('error');
+    }
+  } catch(e) {
+    showSaveIndicator('error');
+  }
+}
+
+function showSaveIndicator(status) {
+  let el = document.getElementById('save-indicator');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'save-indicator';
+    el.style.cssText = 'position:fixed;bottom:16px;right:16px;padding:8px 14px;border-radius:8px;font-size:12px;z-index:9999;box-shadow:0 2px 8px rgba(0,0,0,0.15);transition:background 0.3s';
+    document.body.appendChild(el);
+  }
+  if (status === 'saving') {
+    el.style.background = '#f59e0b'; el.style.color = '#fff';
+    el.textContent = '⏳ Saving to GitHub...';
+  } else if (status === 'saved') {
+    el.style.background = '#16a34a'; el.style.color = '#fff';
+    el.textContent = '✓ Saved to GitHub';
+  } else {
+    el.style.background = '#dc2626'; el.style.color = '#fff';
+    el.textContent = '✗ Save failed — changes in localStorage only';
+  }
+  el.style.display = 'block';
+  if (status !== 'saving') setTimeout(() => { if(el) el.style.display = 'none'; }, 3000);
+}
+
+function updateShareLink() {}
+function getAdjustments() {
+  return getState().adjustments || [];
+}
+function saveAdjustments(a) { saveState({adjustments: a}); }
+
+//  CALC HELPERS 
+function calcRevCents(sub_groups) {
+  let cents = 0;
+  for (const sg of sub_groups) {
+    for (const r of sg.rates || []) {
+      cents += (r.billable_seconds * r.hourly_rate_in_cents) / 3600;
+    }
+  }
+  return cents;
+}
+function calcBillableSecs(sub_groups) {
+  let s = 0;
+  for (const sg of sub_groups) {
+    for (const r of sg.rates || []) s += r.billable_seconds;
+  }
+  return s;
+}
+function calcTotalSecs(sub_groups) {
+  return sub_groups.reduce((a, sg) => a + sg.seconds, 0);
+}
+function fmt$( cents ) { return '$' + (cents/100).toLocaleString('en-US',{minimumFractionDigits:0,maximumFractionDigits:0}); }
+function fmtH( secs ) { return (secs/3600).toFixed(1) + 'h'; }
+function fmtPct( n ) { return n.toFixed(0) + '%'; }
+
+//  AGGREGATE 
+function aggregateByUser(data) {
+  const costRates = getCostRates();
+  return data.groups.map(g => {
+    const totalSecs = calcTotalSecs(g.sub_groups);
+    const billSecs  = calcBillableSecs(g.sub_groups);
+    const revCents  = calcRevCents(g.sub_groups);
+    const hours     = totalSecs / 3600;
+    const costRate  = costRates[g.id] || 0;
+    const costCents = hours * costRate * 100;
+    const margin    = revCents - costCents;
+    const utilPct   = totalSecs > 0 ? (billSecs / totalSecs) * 100 : 0;
+    return { userId: g.id, name: userMap[g.id] || g.id, hours, billSecs, totalSecs, revCents, costCents, margin, utilPct, costRate, sub_groups: g.sub_groups };
+  }).filter(u => u.hours > 0);
+}
+
+function aggregateByProject(data, wowCurr, wowPrev) {
+  const projRev = {}, projHours = {}, projBill = {}, projCost = {};
+  const wowCurrHours = {}, wowPrevHours = {};
+  const costRates = getCostRates();
+  for (const g of data.groups) {
+    const userCostRate = costRates[g.id] || 0;
+    for (const sg of g.sub_groups) {
+      projRev[sg.id]   = (projRev[sg.id]   || 0) + calcRevCents([sg]);
+      projHours[sg.id] = (projHours[sg.id] || 0) + sg.seconds;
+      projBill[sg.id]  = (projBill[sg.id]  || 0) + calcBillableSecs([sg]);
+      projCost[sg.id]  = (projCost[sg.id]  || 0) + (sg.seconds / 3600) * userCostRate * 100;
+    }
+  }
+  for (const g of (wowCurr.groups||[])) for (const sg of g.sub_groups)
+    wowCurrHours[sg.id] = (wowCurrHours[sg.id]||0) + sg.seconds;
+  for (const g of (wowPrev.groups||[])) for (const sg of g.sub_groups)
+    wowPrevHours[sg.id] = (wowPrevHours[sg.id]||0) + sg.seconds;
+
+  return Object.keys(projRev).map(pid => {
+    const id = parseInt(pid);
+    const hours = projHours[id]/3600;
+    const billH = projBill[id]/3600;
+    const revC  = projRev[id];
+    const wowC  = (wowCurrHours[id]||0)/3600;
+    const wowP  = (wowPrevHours[id]||0)/3600;
+    const wowDelta = wowP > 0 ? ((wowC - wowP)/wowP)*100 : (wowC > 0 ? 100 : 0);
+    const costC = projCost[id] || 0;
+    const gp = revC - costC;
+    const gmPct = revC > 0 ? (gp / revC) * 100 : 0;
+    return { projId: id, name: projMap[id] || id, hours, billH, unbillH: hours-billH, revCents: revC, costCents: costC, grossProfit: gp, grossMarginPct: gmPct, wowDelta };
+  }).sort((a,b) => b.revCents - a.revCents);
+}
+
+//  RENDER KPIs 
+function renderKPIs(byUser) {
+  const totH = byUser.reduce((a,u)=>a+u.hours,0);
+  const billH = byUser.reduce((a,u)=>a+u.billSecs/3600,0);
+  const revC  = byUser.reduce((a,u)=>a+u.revCents,0);
+  const costC = byUser.reduce((a,u)=>a+u.costCents,0);
+  const margin = revC - costC;
+  const util  = totH > 0 ? (billH/totH)*100 : 0;
+
+  const adjs = getAdjustments();
+  const adjRev  = adjs.reduce((a,r)=>a+(parseFloat(r.rev)||0),0)*100;
+  const adjCost = adjs.reduce((a,r)=>a+(parseFloat(r.cost)||0),0)*100;
+
+  const kpis = [
+    { label:'Total Hours', value: totH.toFixed(1)+'h', sub:'MTD', cls:'blue' },
+    { label:'Billable Hours', value: billH.toFixed(1)+'h', sub: fmtPct(util)+' util', cls:'green' },
+    { label:'Unbillable Hours', value: (totH-billH).toFixed(1)+'h', sub:'non-billable', cls:'amber' },
+    { label:'Implied Revenue', value: fmt$(revC), sub:'from Toggl rates', cls:'green' },
+    { label:'Implied Cost', value: fmt$(costC), sub:'est. labor cost', cls:'purple' },
+    { label:'Implied Margin', value: fmt$(margin), sub: margin>0?fmtPct((margin/revC)*100)+' margin':'-', cls: margin>0?'green':'red' },
+    { label:'Adj. Revenue', value: fmt$(revC+adjRev), sub:'incl. adjustments', cls:'blue' },
+    { label:'Adj. Cost', value: fmt$(costC+adjCost), sub:'incl. adjustments', cls:'purple' },
+    { label:'Adj. Margin', value: fmt$(margin+adjRev-adjCost), sub: (revC+adjRev)>0?fmtPct(((margin+adjRev-adjCost)/(revC+adjRev))*100)+' margin':'-', cls: (margin+adjRev-adjCost)>0?'green':'red' },
+  ];
+  document.getElementById('kpi-grid').innerHTML = kpis.map(k=>
+    `<div class="kpi ${k.cls}"><div class="label">${k.label}</div><div class="value">${k.value}</div><div class="sub">${k.sub}</div></div>`
+  ).join('');
+}
+
+//  RENDER PROJECT TABLE 
+function renderProjectTable(byProj) {
+  const el = document.getElementById('proj-table');
+  el.innerHTML = `<thead><tr>
+    <th style="text-align:left">Project</th><th>Hours</th><th>Billable</th><th>Unbillable</th>
+    <th>Revenue</th><th>Cost</th><th>Gross Profit</th><th>GM%</th><th>WoW</th>
+  </tr></thead><tbody>${
+    byProj.map(p=>{
+      const wowCls = p.wowDelta>50?'wow-up':p.wowDelta<-50?'wow-down':'wow-flat';
+      const wowTxt = p.wowDelta>0?'^'+Math.abs(p.wowDelta).toFixed(0)+'%':'v'+Math.abs(p.wowDelta).toFixed(0)+'%';
+      const gmCls = p.grossMarginPct>=40?'green':p.grossMarginPct>=0?'amber':'red';
+      return `<tr style="cursor:pointer" onclick="drillProject(${p.projId})">
+        <td>${p.name}</td>
+        <td>${p.hours.toFixed(1)}</td>
+        <td>${p.billH.toFixed(1)}</td>
+        <td>${p.unbillH.toFixed(1)}</td>
+        <td>${fmt$(p.revCents)}</td>
+        <td>${p.costCents>0?fmt$(p.costCents):'-'}</td>
+        <td>${p.revCents>0?fmt$(p.grossProfit):'-'}</td>
+        <td>${p.revCents>0?'<span class="pill '+gmCls+'">'+p.grossMarginPct.toFixed(0)+'%</span>':'-'}</td>
+        <td class="${wowCls}">${wowTxt}</td>
+      </tr>`;
+    }).join('')
+  }</tbody>`;
+}
+
+function renderPersonTable(byUser) {
+  const el = document.getElementById('person-table');
+  el.innerHTML = `<thead><tr>
+    <th>Person</th><th>Hours</th><th>Util%</th>
+    <th>Cost $/hr <small style="font-weight:400">(edit)</small></th>
+    <th>Revenue</th><th>Cost</th><th>Margin</th><th>Margin%</th>
+  </tr></thead><tbody>${
+    byUser.map(u=>{
+      const marginPct = u.revCents>0?(u.margin/u.revCents)*100:0;
+      const pillCls = marginPct>=40?'green':marginPct>=0?'amber':'red';
+      return `<tr style="cursor:pointer" onclick="drillPerson(${u.userId})">
+        <td>${u.name}</td>
+        <td>${u.hours.toFixed(1)}</td>
+        <td><span class="pill ${u.utilPct>=70?'green':u.utilPct>=50?'amber':'red'}">${u.utilPct.toFixed(0)}%</span></td>
+        <td><input type="number" value="${u.costRate}" min="0" step="5"
+          onclick="event.stopPropagation()"
+          onchange="updateCostRate(${u.userId},this.value)"
+          style="width:70px;border:1px solid #e5e7eb;border-radius:4px;padding:3px 6px;font-size:12px;text-align:right"></td>
+        <td>${fmt$(u.revCents)}</td>
+        <td>${fmt$(u.costCents)}</td>
+        <td>${fmt$(u.margin)}</td>
+        <td><span class="pill ${pillCls}">${marginPct.toFixed(0)}%</span></td>
+      </tr>`;
+    }).join('')
+  }</tbody>`;
+}
+
+//  RENDER ANOMALIES 
+function renderAnomalies(byUser, byProj) {
+  const items = [];
+  
+  // Low util
+  byUser.filter(u=>u.utilPct<70&&u.hours>4).forEach(u=>{
+    items.push({icon:'[!]',cls:'warn',text:`<strong>${u.name}</strong> utilization at ${u.utilPct.toFixed(0)}% (below 70% threshold) - ${u.hours.toFixed(1)}h total, ${(u.billSecs/3600).toFixed(1)}h billable`});
+  });
+  
+  // Users with unbillable hours on client projects
+  byUser.filter(u=>u.billSecs/3600<u.hours&&u.hours>2).forEach(u=>{
+    const unbill = u.hours - u.billSecs/3600;
+    if (unbill > 2) items.push({icon:'[RED]',cls:'danger',text:`<strong>${u.name}</strong> has ${unbill.toFixed(1)}h unbillable hours`});
+  });
+  
+  // Big WoW swings
+  byProj.filter(p=>Math.abs(p.wowDelta)>=50&&p.hours>1).forEach(p=>{
+    const dir = p.wowDelta>0?'up':'down';
+    items.push({icon:'[CHART]',cls:'warn',text:`<strong>${p.name}</strong> hours ${dir} ${Math.abs(p.wowDelta).toFixed(0)}% WoW`});
+  });
+
+  const el = document.getElementById('anom-list');
+  if (items.length===0) { el.innerHTML='<li style="color:#6b7280;padding:8px 0">No anomalies detected.</li>'; return; }
+  el.innerHTML = items.map(i=>
+    `<li><div class="anomaly-icon ${i.cls}">${i.icon}</div><div>${i.text}</div></li>`
+  ).join('');
+}
+
+//  DRILL-DOWNS 
+function drillProject(projId) {
+  const name = projMap[projId] || projId;
+  document.getElementById('drill-title').textContent = '[PROJ] ' + name;
+  
+  const rows = [];
+  for (const g of RAW.mtd.groups) {
+    const sg = g.sub_groups.find(s=>s.id===projId);
+    if (!sg) continue;
+    const hrs  = sg.seconds/3600;
+    const billH = calcBillableSecs([sg])/3600;
+    const revC  = calcRevCents([sg]);
+    const costR = (getCostRates()[g.id]||0);
+    const costC = hrs*costR*100;
+    const rateStr = (sg.rates||[]).map(r=>'$'+(r.hourly_rate_in_cents/100)+'/hr x '+(r.billable_seconds/3600).toFixed(1)+'h').join(', ') || '$0/hr';
+    rows.push({name: userMap[g.id]||g.id, hrs, billH, revC, costC, rateStr});
+  }
+  rows.sort((a,b)=>b.revC-a.revC);
+
+  document.getElementById('drill-body').innerHTML = `
+    <table class="dash" style="font-size:12px">
+      <thead><tr><th>Person</th><th>Rate(s)</th><th>Hours</th><th>Billable</th><th>Revenue</th><th>Cost</th><th>Margin</th></tr></thead>
+      <tbody>${rows.map(r=>`<tr>
+        <td>${r.name}</td><td style="font-size:11px;color:#6b7280">${r.rateStr}</td>
+        <td>${r.hrs.toFixed(1)}</td><td>${r.billH.toFixed(1)}</td>
+        <td>${fmt$(r.revC)}</td><td>${fmt$(r.costC)}</td><td>${fmt$(r.revC-r.costC)}</td>
+      </tr>`).join('')}</tbody>
+    </table>`;
+  
+  openDrill();
+}
+
+function drillPerson(userId) {
+  const name = userMap[userId] || userId;
+  document.getElementById('drill-title').textContent = '[PERSON] ' + name;
+  
+  const group = RAW.mtd.groups.find(g=>g.id===userId);
+  if (!group) { document.getElementById('drill-body').innerHTML='<p>No data.</p>'; openDrill(); return; }
+  
+  const costR = getCostRates()[userId]||0;
+  const rows = group.sub_groups.map(sg=>{
+    const hrs   = sg.seconds/3600;
+    const billH = calcBillableSecs([sg])/3600;
+    const revC  = calcRevCents([sg]);
+    const costC = hrs*costR*100;
+    const rateStr = (sg.rates||[]).map(r=>'$'+(r.hourly_rate_in_cents/100)+'/hr').join(', ') || '$0/hr';
+    return {name: projMap[sg.id]||sg.id, hrs, billH, revC, costC, rateStr};
+  }).sort((a,b)=>b.revC-a.revC);
+
+  document.getElementById('drill-body').innerHTML = `
+    <table class="dash" style="font-size:12px">
+      <thead><tr><th>Project</th><th>Rate</th><th>Hours</th><th>Billable</th><th>Revenue</th><th>Cost</th><th>Margin</th></tr></thead>
+      <tbody>${rows.map(r=>`<tr>
+        <td>${r.name}</td><td style="font-size:11px;color:#6b7280">${r.rateStr}</td>
+        <td>${r.hrs.toFixed(1)}</td><td>${r.billH.toFixed(1)}</td>
+        <td>${fmt$(r.revC)}</td><td>${fmt$(r.costC)}</td><td>${fmt$(r.revC-r.costC)}</td>
+      </tr>`).join('')}</tbody>
+    </table>`;
+  
+  openDrill();
+}
+
+function openDrill() {
+  document.getElementById('drill-panel').classList.add('open');
+  document.getElementById('drill-overlay').classList.add('open');
+}
+function closeDrill() {
+  document.getElementById('drill-panel').classList.remove('open');
+  document.getElementById('drill-overlay').classList.remove('open');
+}
+
+//  COST RATE EDITING 
+function updateCostRate(userId, val) {
+  const rates = getCostRates();
+  rates[userId] = parseFloat(val)||0;
+  saveCostRates(rates);
+  render();
+}
+
+//  ADJUSTMENTS 
+let adjData = getAdjustments();
+
+function renderAdjustments() {
+  const tbody = document.getElementById('adj-rows');
+  tbody.innerHTML = adjData.map((r,i)=>`<tr>
+    <td><input value="${r.desc||''}" placeholder="Description" onchange="adjData[${i}].desc=this.value;saveAndRecalc()"></td>
+    <td><input type="number" value="${r.rev||''}" placeholder="0" style="width:100px" onchange="adjData[${i}].rev=this.value;saveAndRecalc()"></td>
+    <td><input type="number" value="${r.cost||''}" placeholder="0" style="width:100px" onchange="adjData[${i}].cost=this.value;saveAndRecalc()"></td>
+    <td><button class="btn-add" onclick="adjData.splice(${i},1);saveAndRecalc()">x</button></td>
+  </tr>`).join('');
+  
+  const adjRev  = adjData.reduce((a,r)=>a+(parseFloat(r.rev)||0),0);
+  const adjCost = adjData.reduce((a,r)=>a+(parseFloat(r.cost)||0),0);
+  document.getElementById('adj-rev-total').textContent  = '$'+adjRev.toLocaleString();
+  document.getElementById('adj-cost-total').textContent = '$'+adjCost.toLocaleString();
+  document.getElementById('adj-margin-total').textContent = '$'+(adjRev-adjCost).toLocaleString();
+}
+
+function addAdjRow() {
+  adjData.push({desc:'',rev:'',cost:''});
+  saveAndRecalc();
+}
+function saveAndRecalc() {
+  saveAdjustments(adjData);
+  render();
+}
+
+//  CHARTS 
+let chartProjRev, chartPersonHours;
+
+function renderCharts(byProj, byUser) {
+  const top8proj = byProj.filter(p=>p.revCents>0).slice(0,8);
+  const projLabels = top8proj.map(p=>p.name);
+  const projRevVals = top8proj.map(p=>p.revCents/100);
+  
+  if (chartProjRev) chartProjRev.destroy();
+  chartProjRev = new Chart(document.getElementById('chart-project-rev'), {
+    type:'bar',
+    data:{ labels:projLabels, datasets:[{ label:'Revenue ($)', data:projRevVals,
+      backgroundColor:'rgba(59,130,246,0.8)', borderRadius:4 }]},
+    options:{ responsive:true, plugins:{ legend:{display:false}, tooltip:{callbacks:{label:c=>'$'+c.raw.toLocaleString()}}},
+      scales:{ y:{ ticks:{ callback:v=>'$'+v.toLocaleString() }}}}
+  });
+
+  const top10person = byUser.sort((a,b)=>b.hours-a.hours).slice(0,10);
+  if (chartPersonHours) chartPersonHours.destroy();
+  chartPersonHours = new Chart(document.getElementById('chart-person-hours'), {
+    type:'bar',
+    data:{ labels:top10person.map(u=>u.name),
+      datasets:[
+        { label:'Billable', data:top10person.map(u=>u.billSecs/3600), backgroundColor:'rgba(34,197,94,0.8)', borderRadius:4 },
+        { label:'Unbillable', data:top10person.map(u=>(u.totalSecs-u.billSecs)/3600), backgroundColor:'rgba(248,113,113,0.8)', borderRadius:4 }
+      ]},
+    options:{ responsive:true, plugins:{ tooltip:{callbacks:{label:c=>c.dataset.label+': '+c.raw.toFixed(1)+'h'}}},
+      scales:{ x:{stacked:true}, y:{stacked:true, ticks:{callback:v=>v+'h'}}}}
+  });
+}
+
+//  SECTION TOGGLE 
+function toggleSection(id) {
+  const body = document.getElementById(id+'-body');
+  const tog  = document.getElementById(id+'-toggle');
+  if (body.classList.contains('collapsed')) {
+    body.classList.remove('collapsed');
+    tog.textContent = 'v collapse';
+  } else {
+    body.classList.add('collapsed');
+    tog.textContent = '> expand';
+  }
+}
+
+//  SOURCES PANEL 
+function toggleSources() {
+  const p = document.getElementById('sources-panel');
+  p.classList.toggle('open');
+  if (p.classList.contains('open') && !p.innerHTML) buildSources();
+}
+
+function buildSources() {
+  const byUser = aggregateByUser(RAW.mtd);
+  const totRevC = byUser.reduce((a,u)=>a+u.revCents,0);
+  const totCostC = byUser.reduce((a,u)=>a+u.costCents,0);
+  const totHours = byUser.reduce((a,u)=>a+u.hours,0);
+
+  document.getElementById('sources-panel').innerHTML = `
+    <h4>MCP Calls Made</h4>
+    <div class="calc-step"><div class="step-num">1</div><div><strong>toggl_list_users()</strong> -> 12 active users with time this month</div></div>
+    <div class="calc-step"><div class="step-num">2</div><div><strong>toggl_list_projects()</strong> -> 34 projects (12 active this month)</div></div>
+    <div class="calc-step"><div class="step-num">3</div><div><strong>toggl_workspace_summary("2026-05-01","2026-05-29")</strong> -> MTD summary by user->project</div></div>
+    <div class="calc-step"><div class="step-num">4</div><div><strong>toggl_workspace_summary("2026-05-22","2026-05-29")</strong> -> Current week (WoW numerator)</div></div>
+    <div class="calc-step"><div class="step-num">5</div><div><strong>toggl_workspace_summary("2026-05-15","2026-05-21")</strong> -> Prior week (WoW denominator)</div></div>
+
+    <h4>Revenue Calculation</h4>
+    <div class="calc-step"><div class="step-num">-></div><div>For each (user, project) sub_group: sum all rate buckets of <code>billable_seconds x hourly_rate_in_cents / 3600</code></div></div>
+    <div class="calc-step"><div class="step-num">-></div><div>Total MTD implied revenue: <strong>${fmt$(totRevC)}</strong> across ${byUser.length} users</div></div>
+    <div class="calc-step"><div class="step-num">-></div><div>Example: Austin on Hyer -> 104,400s x $250/hr / 3600 = <strong>$7,250</strong></div></div>
+    <div class="calc-step"><div class="step-num">-></div><div>Example: Brian Stanley on Bottlecapps -> 77,959sx$100/hr + 25,557sx$150/hr / 3600 = <strong>${fmt$(calcRevCents([{rates:[{billable_seconds:77959,hourly_rate_in_cents:10000},{billable_seconds:25557,hourly_rate_in_cents:15000}]}]))}</strong></div></div>
+
+    <h4>Cost Calculation</h4>
+    <div class="calc-step"><div class="step-num">-></div><div>Per-user cost rate ($/hr) x total hours = estimated labor cost</div></div>
+    <div class="calc-step"><div class="step-num">-></div><div>Default rates set from Toggl billing rates as proxy. Edit in By Person table - persists in localStorage.</div></div>
+    <div class="calc-step"><div class="step-num">-></div><div>Total MTD implied cost: <strong>${fmt$(totCostC)}</strong> (${totHours.toFixed(1)}h total)</div></div>
+
+    <h4>WoW Calculation</h4>
+    <div class="calc-step"><div class="step-num">-></div><div>WoW  = (curr_week_hours  prev_week_hours) / prev_week_hours x 100%</div></div>
+    <div class="calc-step"><div class="step-num">-></div><div>Flagged if ||  50% and project has >1h this month</div></div>
+
+    <h4>Raw MTD Summary Response (sample)</h4>
+    <pre>${JSON.stringify(RAW.mtd.groups.slice(0,2), null, 2)}</pre>
+  `;
+}
+
+//  MAIN RENDER 
+function render() {
+  adjData = getAdjustments();
+  const byUser = aggregateByUser(RAW.mtd);
+  const byProj = aggregateByProject(RAW.mtd, RAW.wow_curr, RAW.wow_prev);
+  renderKPIs(byUser);
+  renderProjectTable(byProj);
+  renderPersonTable(byUser);
+  renderAnomalies(byUser, byProj);
+  renderAdjustments();
+  renderCharts(byProj, [...byUser]);
+}
+
+async function init() {
+  await loadStateFromCloud();
+  adjData = getAdjustments();
+  render();
+}
+init();
+
+const ALL_TXNS = [{"id":4391682045,"username":"Austin","project_id":206218387,"description":"Hyer - Analysis review, Jlit question follow up","billable":true,"hours":0.5,"rate":25000,"amount_cents":12500,"date":"2026-05-01","project":"Hyer"},{"id":4391735148,"username":"Jacob","project_id":213640418,"description":"Red apple - discussion with Kenny, meeting prep, Q1 and cash flow review","billable":true,"hours":0.5,"rate":27500,"amount_cents":13750,"date":"2026-05-01","project":"Red Apple Fireworks"},{"id":4391543723,"username":"Alexis","project_id":208363068,"description":"ooo","billable":false,"hours":8.0,"rate":0,"amount_cents":0,"date":"2026-05-01","project":"QuantFi"},{"id":4391734014,"username":"Jacob","project_id":206576167,"description":"Decile meeting, decile review and prep","billable":true,"hours":0.75,"rate":0,"amount_cents":0,"date":"2026-05-01","project":"Konscious"},{"id":4391682232,"username":"Austin","project_id":206218387,"description":"MFP + CAP Touchbase","billable":true,"hours":1.0,"rate":25000,"amount_cents":25000,"date":"2026-05-01","project":"Hyer"},{"id":4391735985,"username":"Jacob","project_id":206576167,"description":"Data model update, budget updates and alignment, model review","billable":true,"hours":0.75,"rate":0,"amount_cents":0,"date":"2026-05-01","project":"Konscious"},{"id":4391682087,"username":"Austin","project_id":213270889,"description":"Treville - email follow up, AP Track/Ramp Update","billable":true,"hours":1.5,"rate":17500,"amount_cents":26250,"date":"2026-05-01","project":"Treville"},{"id":4391734511,"username":"Jacob","project_id":213640418,"description":"Red Apple Meeting","billable":true,"hours":1.0,"rate":27500,"amount_cents":27500,"date":"2026-05-01","project":"Red Apple Fireworks"},{"id":4391735683,"username":"Jacob","project_id":206576167,"description":"Budget updates, commentary on changes","billable":true,"hours":0.5,"rate":0,"amount_cents":0,"date":"2026-05-01","project":"Konscious"},{"id":4393911040,"username":"Patrick","project_id":213640418,"description":"Weekly review and update","billable":true,"hours":1.0,"rate":17500,"amount_cents":17500,"date":"2026-05-01","project":"Red Apple Fireworks"},{"id":4393911741,"username":"Patrick","project_id":213640418,"description":"Motor C I/C and emails","billable":true,"hours":0.25,"rate":17500,"amount_cents":4375,"date":"2026-05-01","project":"Red Apple Fireworks"},{"id":4391551690,"username":"Brian Stanley","project_id":219179204,"description":"Meeting with Customer","billable":true,"hours":0.25,"rate":17500,"amount_cents":4375,"date":"2026-05-02","project":"VRS"},{"id":4391551992,"username":"Brian Stanley","project_id":215858961,"description":"Meeting with Customer","billable":true,"hours":1.0,"rate":15000,"amount_cents":15000,"date":"2026-05-02","project":"Berg"},{"id":4392229231,"username":"Jacob","project_id":206576167,"description":"Clean up budget, Updated and reviewed budget commentary and email to Henry","billable":true,"hours":0.5,"rate":0,"amount_cents":0,"date":"2026-05-02","project":"Konscious"},{"id":4393913462,"username":"Patrick","project_id":213640418,"description":"Dec payroll accrual, fix uncategorized income on RA, Review Auto","billable":true,"hours":0.5,"rate":17500,"amount_cents":8750,"date":"2026-05-02","project":"Red Apple Fireworks"},{"id":4393914511,"username":"Patrick","project_id":213640418,"description":"RAFW Q1 and April account balances review","billable":true,"hours":0.42,"rate":17500,"amount_cents":7292,"date":"2026-05-02","project":"Red Apple Fireworks"},{"id":4393399977,"username":"Paul","project_id":215700227,"description":"Emails, ramp, bill.com","billable":true,"hours":0.75,"rate":15000,"amount_cents":11250,"date":"2026-05-04","project":"Chew"},{"id":4393381788,"username":"Alexis","project_id":206218387,"description":"Hyer Payrol Rippling","billable":true,"hours":3.0,"rate":8000,"amount_cents":24000,"date":"2026-05-04","project":"Hyer"},{"id":4394162653,"username":"Jacob","project_id":213640418,"description":"Red Apple weekly Sales Update and commentary","billable":true,"hours":0.75,"rate":27500,"amount_cents":20625,"date":"2026-05-04","project":"Red Apple Fireworks"},{"id":4393811816,"username":"Brian Stanley","project_id":216893794,"description":"Quick exercise for Kraig","billable":true,"hours":0.5,"rate":15000,"amount_cents":7500,"date":"2026-05-04","project":"Bottlecapps"},{"id":4394163082,"username":"Jacob","project_id":206576167,"description":"Agenda and week prep, Finance team meeting","billable":true,"hours":0.75,"rate":0,"amount_cents":0,"date":"2026-05-04","project":"Konscious"},{"id":4394296757,"username":"John","project_id":206218387,"description":"AR Call & Tech Call","billable":true,"hours":1.0,"rate":15000,"amount_cents":15000,"date":"2026-05-04","project":"Hyer"},{"id":4394269065,"username":"Alexis","project_id":215700227,"description":"Justworks payroll","billable":true,"hours":1.25,"rate":10000,"amount_cents":12500,"date":"2026-05-04","project":"Chew"},{"id":4413528065,"username":"Brian Stanley","project_id":216893794,"description":"Bottlecaps Bookkeeping","billable":true,"hours":2.13,"rate":10000,"amount_cents":21333,"date":"2026-05-04","project":"Bottlecapps"},{"id":4394163428,"username":"Jacob","project_id":213640418,"description":"Internal meeting","billable":true,"hours":1.0,"rate":27500,"amount_cents":27500,"date":"2026-05-04","project":"Red Apple Fireworks"},{"id":4393914049,"username":"Alexis","project_id":206218387,"description":"hyer meeting AR weekly","billable":true,"hours":0.75,"rate":8000,"amount_cents":6000,"date":"2026-05-04","project":"Hyer"},{"id":4412144365,"username":"Patrick","project_id":213640418,"description":"Internal sync","billable":true,"hours":0.5,"rate":17500,"amount_cents":8750,"date":"2026-05-04","project":"Red Apple Fireworks"},{"id":4397286808,"username":"Joseph","project_id":219432326,"description":"Fexa Docs From Chris Pull Down","billable":true,"hours":2.0,"rate":0,"amount_cents":0,"date":"2026-05-04","project":"Fexa"},{"id":4412143285,"username":"Patrick","project_id":213640418,"description":"April M/E review and cash review","billable":true,"hours":0.5,"rate":17500,"amount_cents":8750,"date":"2026-05-04","project":"Red Apple Fireworks"},{"id":4394106028,"username":"Alexis","project_id":213640418,"description":"Weekly Financial Meeting","billable":true,"hours":1.25,"rate":8000,"amount_cents":10000,"date":"2026-05-04","project":"Red Apple Fireworks"},{"id":4394297151,"username":"John","project_id":206218387,"description":"Cash Flow & Stripe Process & Commission","billable":true,"hours":2.0,"rate":15000,"amount_cents":30000,"date":"2026-05-04","project":"Hyer"},{"id":4393914402,"username":"Alexis","project_id":215700227,"description":"Justworks payroll","billable":true,"hours":0.5,"rate":10000,"amount_cents":5000,"date":"2026-05-04","project":"Chew"},{"id":4394111727,"username":"Alexis","project_id":206218387,"description":"AR Meeting Ariel J","billable":true,"hours":1.0,"rate":8000,"amount_cents":8000,"date":"2026-05-04","project":"Hyer"},{"id":4401577420,"username":"John","project_id":206218387,"description":"Balance sheet Reconciliation","billable":true,"hours":2.0,"rate":15000,"amount_cents":30000,"date":"2026-05-04","project":"Hyer"},{"id":4395927707,"username":"Jacob","project_id":213640418,"description":"Weekly Sales file review and update with Daniel","billable":true,"hours":0.5,"rate":27500,"amount_cents":13750,"date":"2026-05-04","project":"Red Apple Fireworks"},{"id":4395931116,"username":"Jacob","project_id":213640418,"description":"Weekly sales update review and adjustments","billable":true,"hours":0.5,"rate":27500,"amount_cents":13750,"date":"2026-05-05","project":"Red Apple Fireworks"},{"id":4395944100,"username":"Alexis","project_id":213640418,"description":"Categorizing Transactions on Bank","billable":true,"hours":2.0,"rate":8000,"amount_cents":16000,"date":"2026-05-05","project":"Red Apple Fireworks"},{"id":4400108247,"username":"Byoon","project_id":215700227,"description":"Standard meeting and housekeeping","billable":true,"hours":0.5,"rate":25000,"amount_cents":12500,"date":"2026-05-05","project":"Chew"},{"id":4401577767,"username":"John","project_id":206218387,"description":"Month End Close Process","billable":true,"hours":4.0,"rate":15000,"amount_cents":60000,"date":"2026-05-05","project":"Hyer"},{"id":4395891854,"username":"Austin","project_id":206218387,"description":"Hyer - Pre meeting review of data, putting package together for CS","billable":true,"hours":0.25,"rate":25000,"amount_cents":6250,"date":"2026-05-05","project":"Hyer"},{"id":4395944254,"username":"Alexis","project_id":206218387,"description":"Stripe Payments","billable":true,"hours":1.0,"rate":8000,"amount_cents":8000,"date":"2026-05-05","project":"Hyer"},{"id":4395891888,"username":"Austin","project_id":206218387,"description":"QuantFi <> Hyer - Weekly Sync","billable":true,"hours":0.5,"rate":25000,"amount_cents":12500,"date":"2026-05-05","project":"Hyer"},{"id":4395928320,"username":"Jacob","project_id":206576167,"description":"Data Model Update, finance team meeting prep & Meeting, followups","billable":true,"hours":1.5,"rate":0,"amount_cents":0,"date":"2026-05-05","project":"Konscious"},{"id":4397340902,"username":"Joseph","project_id":219432326,"description":"Fexa PRD Revisions","billable":true,"hours":2.5,"rate":0,"amount_cents":0,"date":"2026-05-05","project":"Fexa"},{"id":4395944491,"username":"Alexis","project_id":215700227,"description":"Perdue expenses categorizing","billable":true,"hours":1.75,"rate":10000,"amount_cents":17500,"date":"2026-05-05","project":"Chew"},{"id":4401577378,"username":"John","project_id":206218387,"description":"Balance sheet Reconciliation","billable":true,"hours":2.0,"rate":15000,"amount_cents":30000,"date":"2026-05-05","project":"Hyer"},{"id":4395850503,"username":"Brian Stanley","project_id":216893794,"description":"Client Meeting","billable":true,"hours":0.5,"rate":15000,"amount_cents":7500,"date":"2026-05-05","project":"Bottlecapps"},{"id":4396147007,"username":"Alexis","project_id":215700227,"description":"Brookline manually adding transactions","billable":true,"hours":2.5,"rate":10000,"amount_cents":25000,"date":"2026-05-05","project":"Chew"},{"id":4401577110,"username":"John","project_id":206218387,"description":"BBC","billable":true,"hours":1.0,"rate":15000,"amount_cents":15000,"date":"2026-05-05","project":"Hyer"},{"id":4399289625,"username":"Joseph","project_id":213038766,"description":"Everbloom Composio Setup","billable":true,"hours":1.5,"rate":0,"amount_cents":0,"date":"2026-05-05","project":"Everbloom"},{"id":4398934856,"username":"Jacob","project_id":213640418,"description":"Weekly sales dashboard update - margin add-ons, review, and updates to Daniel","billable":true,"hours":1.0,"rate":27500,"amount_cents":27500,"date":"2026-05-06","project":"Red Apple Fireworks"},{"id":4397611652,"username":"Alexis","project_id":213640418,"description":"Cash on hand verification and meeting with Patrick","billable":true,"hours":3.0,"rate":8000,"amount_cents":24000,"date":"2026-05-06","project":"Red Apple Fireworks"},{"id":4412143752,"username":"Patrick","project_id":213640418,"description":"Click-up review","billable":true,"hours":0.5,"rate":17500,"amount_cents":8750,"date":"2026-05-06","project":"Red Apple Fireworks"},{"id":4397310379,"username":"Byoon","project_id":216893794,"description":"Bottlecapps deck review","billable":true,"hours":2.0,"rate":25000,"amount_cents":50000,"date":"2026-05-06","project":"Bottlecapps"},{"id":4397341220,"username":"Joseph","project_id":208363068,"description":"Project Automate Weekly Meeting","billable":false,"hours":1.0,"rate":0,"amount_cents":0,"date":"2026-05-06","project":"QuantFi"},{"id":4401577849,"username":"John","project_id":206218387,"description":"Month End Close Process","billable":true,"hours":5.0,"rate":15000,"amount_cents":75000,"date":"2026-05-06","project":"Hyer"},{"id":4398935905,"username":"Jacob","project_id":206576167,"description":"Stripe meeting and follow-ups, retail data organization, to-do list reviews and ","billable":true,"hours":1.25,"rate":0,"amount_cents":0,"date":"2026-05-06","project":"Konscious"},{"id":4397611350,"username":"Alexis","project_id":206218387,"description":"Stripe Payments","billable":true,"hours":1.5,"rate":8000,"amount_cents":12000,"date":"2026-05-06","project":"Hyer"},{"id":4399290036,"username":"Joseph","project_id":219432326,"description":"Fexa Project Tracker & Design Doc","billable":true,"hours":3.0,"rate":0,"amount_cents":0,"date":"2026-05-06","project":"Fexa"},{"id":4412143943,"username":"Patrick","project_id":213640418,"description":"Gina cash Q&A","billable":true,"hours":0.42,"rate":17500,"amount_cents":7292,"date":"2026-05-06","project":"Red Apple Fireworks"},{"id":4397611975,"username":"Alexis","project_id":215700227,"description":"Accruals April","billable":true,"hours":1.0,"rate":10000,"amount_cents":10000,"date":"2026-05-06","project":"Chew"},{"id":4397612602,"username":"Alexis","project_id":215700227,"description":"bill.com vendor","billable":true,"hours":0.5,"rate":10000,"amount_cents":5000,"date":"2026-05-06","project":"Chew"},{"id":4397492896,"username":"Brian Stanley","project_id":215858961,"description":"Project Status Dashboard","billable":true,"hours":0.9,"rate":15000,"amount_cents":13546,"date":"2026-05-06","project":"Berg"},{"id":4397740417,"username":"John","project_id":206218387,"description":"Tipalti Updates & Troubleshooting","billable":true,"hours":3.0,"rate":15000,"amount_cents":45000,"date":"2026-05-06","project":"Hyer"},{"id":4398985475,"username":"Miko","project_id":213038766,"description":"Master Model Recon","billable":true,"hours":1.5,"rate":25000,"amount_cents":37500,"date":"2026-05-07","project":"Everbloom"},{"id":4399508953,"username":"Alexis","project_id":213640418,"description":"Cash on hand verification and meeting with Patrick","billable":true,"hours":2.0,"rate":8000,"amount_cents":16000,"date":"2026-05-07","project":"Red Apple Fireworks"},{"id":4412144742,"username":"Patrick","project_id":213640418,"description":"Alexis cash review","billable":true,"hours":0.25,"rate":17500,"amount_cents":4375,"date":"2026-05-07","project":"Red Apple Fireworks"},{"id":4400107228,"username":"Byoon","project_id":215858961,"description":"Berg Meeting","billable":true,"hours":0.5,"rate":25000,"amount_cents":12500,"date":"2026-05-07","project":"Berg"},{"id":4401577700,"username":"John","project_id":206218387,"description":"Month EndClose","billable":true,"hours":1.0,"rate":15000,"amount_cents":15000,"date":"2026-05-07","project":"Hyer"},{"id":4413528824,"username":"Brian Stanley","project_id":216893794,"description":"Bottlecaps Bookkeeping","billable":true,"hours":1.4,"rate":10000,"amount_cents":14000,"date":"2026-05-07","project":"Bottlecapps"},{"id":4400105304,"username":"Byoon","project_id":215858961,"description":"Berg 13 week cash flow","billable":true,"hours":4.0,"rate":25000,"amount_cents":100000,"date":"2026-05-07","project":"Berg"},{"id":4399509143,"username":"Alexis","project_id":215700227,"description":"Accruals reconciling April","billable":true,"hours":2.0,"rate":10000,"amount_cents":20000,"date":"2026-05-07","project":"Chew"},{"id":4399190957,"username":"Jacob","project_id":213640418,"description":"Model cleanup (Cash flow projections)","billable":true,"hours":0.5,"rate":27500,"amount_cents":13750,"date":"2026-05-07","project":"Red Apple Fireworks"},{"id":4399190277,"username":"Jacob","project_id":206576167,"description":"Retail update, returns analysis project scope, check-in with Parth","billable":true,"hours":1.25,"rate":0,"amount_cents":0,"date":"2026-05-07","project":"Konscious"},{"id":4399290221,"username":"Joseph","project_id":219432326,"description":"Fexa Huddle","billable":true,"hours":0.5,"rate":0,"amount_cents":0,"date":"2026-05-07","project":"Fexa"},{"id":4399509316,"username":"Alexis","project_id":215700227,"description":"Fixed Assets ROU Assets Reconciliation","billable":true,"hours":2.0,"rate":10000,"amount_cents":20000,"date":"2026-05-07","project":"Chew"},{"id":4401411767,"username":"Joseph","project_id":219432326,"description":"Fexa Full Brain Build","billable":true,"hours":4.5,"rate":0,"amount_cents":0,"date":"2026-05-07","project":"Fexa"},{"id":4399509588,"username":"Alexis","project_id":213640418,"description":"Reconciling leftover accounts from March Ramp Card Fix and 0862 0879","billable":true,"hours":1.0,"rate":8000,"amount_cents":8000,"date":"2026-05-07","project":"Red Apple Fireworks"},{"id":4400589648,"username":"John","project_id":206218387,"description":"Fin Statement Review & Monthly Compliance","billable":true,"hours":3.0,"rate":15000,"amount_cents":45000,"date":"2026-05-07","project":"Hyer"},{"id":4399510120,"username":"Alexis","project_id":213640418,"description":"Reconciling Flint and Valdosta Chase Accounts","billable":true,"hours":2.5,"rate":8000,"amount_cents":20000,"date":"2026-05-08","project":"Red Apple Fireworks"},{"id":4401411892,"username":"Joseph","project_id":219432326,"description":"Fexa Brain v1 Review","billable":true,"hours":3.5,"rate":0,"amount_cents":0,"date":"2026-05-08","project":"Fexa"},{"id":4402699385,"username":"Jacob","project_id":213640418,"description":"Financial Model update (B2B, Online Modeling splits), Cash flow update","billable":true,"hours":0.5,"rate":27500,"amount_cents":13750,"date":"2026-05-08","project":"Red Apple Fireworks"},{"id":4400563721,"username":"Byoon","project_id":215858961,"description":"Refresh to model","billable":true,"hours":1.5,"rate":25000,"amount_cents":37500,"date":"2026-05-08","project":"Berg"},{"id":4399509881,"username":"Alexis","project_id":213640418,"description":"Reconciling Red Apple Fireworks Chase","billable":true,"hours":3.0,"rate":8000,"amount_cents":24000,"date":"2026-05-08","project":"Red Apple Fireworks"},{"id":4400603453,"username":"John","project_id":206218387,"description":"Fin Reports","billable":true,"hours":0.5,"rate":15000,"amount_cents":7500,"date":"2026-05-08","project":"Hyer"},{"id":4400674727,"username":"Austin","project_id":206218387,"description":"MFP + CAP Touchbase","billable":true,"hours":1.0,"rate":25000,"amount_cents":25000,"date":"2026-05-08","project":"Hyer"},{"id":4402700144,"username":"Jacob","project_id":206576167,"description":"Enclave budget meeting prep, meeting with RJ","billable":true,"hours":1.0,"rate":0,"amount_cents":0,"date":"2026-05-08","project":"Konscious"},{"id":4412145738,"username":"Patrick","project_id":213640418,"description":"Inventory I/C entries from 131","billable":true,"hours":2.0,"rate":17500,"amount_cents":35000,"date":"2026-05-08","project":"Red Apple Fireworks"},{"id":4400674869,"username":"Austin","project_id":206218387,"description":"Hyer - Model update with actuals, BvA to for Dep heads","billable":true,"hours":2.0,"rate":25000,"amount_cents":50000,"date":"2026-05-08","project":"Hyer"},{"id":4400377974,"username":"Alexis","project_id":206218387,"description":"Stripe Payments","billable":true,"hours":1.75,"rate":8000,"amount_cents":14000,"date":"2026-05-08","project":"Hyer"},{"id":4412146219,"username":"Patrick","project_id":213640418,"description":"RAFW April review","billable":true,"hours":0.5,"rate":17500,"amount_cents":8750,"date":"2026-05-08","project":"Red Apple Fireworks"},{"id":4412146512,"username":"Patrick","project_id":213640418,"description":"BIG 3 P&L Review April","billable":true,"hours":1.5,"rate":17500,"amount_cents":26250,"date":"2026-05-08","project":"Red Apple Fireworks"},{"id":4402700788,"username":"Jacob","project_id":206576167,"description":"Discussion with Parth on Emma reporting","billable":true,"hours":0.5,"rate":0,"amount_cents":0,"date":"2026-05-08","project":"Konscious"},{"id":4412147422,"username":"Patrick","project_id":213640418,"description":"BIG 3 balance sheet review","billable":true,"hours":2.0,"rate":17500,"amount_cents":35000,"date":"2026-05-09","project":"Red Apple Fireworks"},{"id":4412148011,"username":"Patrick","project_id":213640418,"description":"Pinewood, Birchwood, GoldenM NV","billable":true,"hours":1.17,"rate":17500,"amount_cents":20417,"date":"2026-05-10","project":"Red Apple Fireworks"},{"id":4412148621,"username":"Patrick","project_id":213640418,"description":"Red SQ, GoldenM GA, Valdosta WH","billable":true,"hours":0.92,"rate":17500,"amount_cents":16042,"date":"2026-05-10","project":"Red Apple Fireworks"},{"id":4403403910,"username":"Joseph","project_id":213038766,"description":"Everbloom Credential Meeting","billable":true,"hours":0.5,"rate":0,"amount_cents":0,"date":"2026-05-11","project":"Everbloom"},{"id":4402272595,"username":"Paul","project_id":215700227,"description":"MEC, Bill.com, emails","billable":true,"hours":1.33,"rate":15000,"amount_cents":20000,"date":"2026-05-11","project":"Chew"},{"id":4412149173,"username":"Patrick","project_id":213640418,"description":"I/C between all companies","billable":true,"hours":1.08,"rate":17500,"amount_cents":18958,"date":"2026-05-11","project":"Red Apple Fireworks"},{"id":4412149577,"username":"Patrick","project_id":213640418,"description":"I/C between all companies","billable":true,"hours":0.33,"rate":17500,"amount_cents":5833,"date":"2026-05-11","project":"Red Apple Fireworks"},{"id":4404637021,"username":"Alexis","project_id":213640418,"description":"Reviewing and fixing bank register big 3 and imports","billable":true,"hours":4.0,"rate":8000,"amount_cents":32000,"date":"2026-05-11","project":"Red Apple Fireworks"},{"id":4403043528,"username":"Jacob","project_id":206576167,"description":"Costco files and contact review, agenda prep, data weekly meeting","billable":true,"hours":1.0,"rate":0,"amount_cents":0,"date":"2026-05-11","project":"Konscious"},{"id":4403085251,"username":"Jacob","project_id":213640418,"description":"Weekly sales update, internal team meeting","billable":true,"hours":1.5,"rate":27500,"amount_cents":41250,"date":"2026-05-11","project":"Red Apple Fireworks"},{"id":4415442649,"username":"John","project_id":206218387,"description":"AR Call","billable":true,"hours":0.5,"rate":15000,"amount_cents":7500,"date":"2026-05-11","project":"Hyer"},{"id":4412149973,"username":"Patrick","project_id":213640418,"description":"Internal sync","billable":true,"hours":0.83,"rate":17500,"amount_cents":14583,"date":"2026-05-11","project":"Red Apple Fireworks"},{"id":4403012026,"username":"Brian Stanley","project_id":216893794,"description":"Bottlecaps Bookkeeping","billable":true,"hours":1.66,"rate":10000,"amount_cents":16553,"date":"2026-05-11","project":"Bottlecapps"},{"id":4403404156,"username":"Joseph","project_id":219432326,"description":"Fexa Brain Updates & Deep Review","billable":true,"hours":4.5,"rate":0,"amount_cents":0,"date":"2026-05-11","project":"Fexa"},{"id":4404637803,"username":"Alexis","project_id":213640418,"description":"Reviewing bank register others","billable":true,"hours":3.0,"rate":8000,"amount_cents":24000,"date":"2026-05-11","project":"Red Apple Fireworks"},{"id":4415439879,"username":"John","project_id":206218387,"description":"Cash Flow & BBC","billable":true,"hours":1.5,"rate":15000,"amount_cents":22500,"date":"2026-05-11","project":"Hyer"},{"id":4404231567,"username":"Jacob","project_id":206576167,"description":"Comms - agenda sharing, Collin follow up, Alex scheduling. Costco costs review","billable":true,"hours":0.75,"rate":0,"amount_cents":0,"date":"2026-05-11","project":"Konscious"},{"id":4412150740,"username":"Patrick","project_id":213640418,"description":"MotorC/Valdosta I/C","billable":true,"hours":2.33,"rate":17500,"amount_cents":40833,"date":"2026-05-11","project":"Red Apple Fireworks"},{"id":4413529867,"username":"Brian Stanley","project_id":219179204,"description":"VRS Bookkeeping","billable":true,"hours":4.13,"rate":8000,"amount_cents":33067,"date":"2026-05-12","project":"VRS"},{"id":4404101175,"username":"Paul","project_id":215700227,"description":"MEC, Bill.com, emails","billable":true,"hours":1.0,"rate":15000,"amount_cents":15000,"date":"2026-05-12","project":"Chew"},{"id":4406091014,"username":"Byoon","project_id":216893794,"description":"Bottlecapps model update","billable":true,"hours":2.0,"rate":25000,"amount_cents":50000,"date":"2026-05-12","project":"Bottlecapps"},{"id":4405151870,"username":"Joseph","project_id":219432326,"description":"Fexa Brain Interface Planning","billable":true,"hours":2.5,"rate":0,"amount_cents":0,"date":"2026-05-12","project":"Fexa"},{"id":4404779955,"username":"Christian","project_id":206218387,"description":"Engagement Mgmt.","billable":true,"hours":0.5,"rate":25000,"amount_cents":12500,"date":"2026-05-12","project":"Hyer"},{"id":4406581587,"username":"Jacob","project_id":209735870,"description":"Meeting with Will on model handoff, Gwen questions","billable":true,"hours":1.0,"rate":25000,"amount_cents":25000,"date":"2026-05-12","project":"Fabrik"},{"id":4409339243,"username":"Austin","project_id":206218387,"description":"QuantFi <> Hyer - Weekly Sync","billable":true,"hours":0.5,"rate":25000,"amount_cents":12500,"date":"2026-05-12","project":"Hyer"},{"id":4408216810,"username":"Alexis","project_id":213640418,"description":"Creating loan schedule for 2nd land rover","billable":true,"hours":1.0,"rate":8000,"amount_cents":8000,"date":"2026-05-12","project":"Red Apple Fireworks"},{"id":4405117069,"username":"Christian","project_id":216893794,"description":"Engagement Mgmt.","billable":true,"hours":1.0,"rate":25000,"amount_cents":25000,"date":"2026-05-12","project":"Bottlecapps"},{"id":4406582089,"username":"Jacob","project_id":206576167,"description":"Finance team meeting prep, data model updates, meeting follow-ups, Costco analys","billable":true,"hours":1.5,"rate":0,"amount_cents":0,"date":"2026-05-12","project":"Konscious"},{"id":4408217061,"username":"Alexis","project_id":213640418,"description":"Reconciling register, fixing discrepancies, flagging 50k transfers","billable":true,"hours":2.0,"rate":8000,"amount_cents":16000,"date":"2026-05-12","project":"Red Apple Fireworks"},{"id":4405152150,"username":"Joseph","project_id":219432326,"description":"Fexa Brain Interface Build + Intacct MCP Build (parallel)","billable":true,"hours":6.5,"rate":0,"amount_cents":0,"date":"2026-05-12","project":"Fexa"},{"id":4409339415,"username":"Austin","project_id":206218387,"description":"Hyer - Financial Model Fcst Update","billable":true,"hours":0.5,"rate":25000,"amount_cents":12500,"date":"2026-05-12","project":"Hyer"},{"id":4404752797,"username":"Brian Stanley","project_id":216893794,"description":"Client Meeting","billable":true,"hours":1.25,"rate":15000,"amount_cents":18692,"date":"2026-05-12","project":"Bottlecapps"},{"id":4408216445,"username":"Alexis","project_id":206218387,"description":"Daily Stripe payments","billable":true,"hours":1.25,"rate":8000,"amount_cents":10000,"date":"2026-05-12","project":"Hyer"},{"id":4404992077,"username":"Paul","project_id":215700227,"description":"MEC revew with Alexis","billable":true,"hours":1.25,"rate":15000,"amount_cents":18750,"date":"2026-05-12","project":"Chew"},{"id":4406220447,"username":"Alexis","project_id":215700227,"description":"Meeting with Paul to go over MEC, updating Perdue report, excel roll forward fix","billable":true,"hours":2.75,"rate":10000,"amount_cents":27500,"date":"2026-05-12","project":"Chew"},{"id":4405824829,"username":"Paul","project_id":215700227,"description":"ramp sync issues, emails, Perdue report","billable":true,"hours":1.0,"rate":15000,"amount_cents":15000,"date":"2026-05-13","project":"Chew"},{"id":4405843567,"username":"Brian Stanley","project_id":219179204,"description":"Meeting prep and Meeting with customer","billable":true,"hours":2.92,"rate":8000,"amount_cents":23396,"date":"2026-05-13","project":"VRS"},{"id":4406646442,"username":"Joseph","project_id":208363068,"description":"Project Automate Weekly Meeting","billable":false,"hours":1.0,"rate":0,"amount_cents":0,"date":"2026-05-13","project":"QuantFi"},{"id":4406583175,"username":"Jacob","project_id":206576167,"description":"Decile deep dive and touchbase with Parth, Data Model review and cleanup, to-do ","billable":true,"hours":1.0,"rate":0,"amount_cents":0,"date":"2026-05-13","project":"Konscious"},{"id":4408218307,"username":"Alexis","project_id":213640418,"description":"Reconcilng Raymond James, Flint 6879 card, Amex CCs","billable":true,"hours":2.0,"rate":8000,"amount_cents":16000,"date":"2026-05-13","project":"Red Apple Fireworks"},{"id":4406647898,"username":"Joseph","project_id":219432326,"description":"Fexa Brain Walkthrough","billable":true,"hours":1.0,"rate":0,"amount_cents":0,"date":"2026-05-13","project":"Fexa"},{"id":4409339534,"username":"Austin","project_id":206218387,"description":"Hyer - Inventory forecast update & update of adjusted actuals","billable":true,"hours":1.5,"rate":25000,"amount_cents":37500,"date":"2026-05-13","project":"Hyer"},{"id":4406448878,"username":"Brian Stanley","project_id":215858961,"description":"Controller Monthly Package Prep","billable":true,"hours":0.77,"rate":15000,"amount_cents":11546,"date":"2026-05-13","project":"Berg"},{"id":4407727179,"username":"Jacob","project_id":206576167,"description":"Costco model, Autumn follow-ups, to-do list reviews","billable":true,"hours":1.0,"rate":0,"amount_cents":0,"date":"2026-05-13","project":"Konscious"},{"id":4406505902,"username":"Brian Stanley","project_id":216893794,"description":"Client Meeting","billable":true,"hours":0.5,"rate":15000,"amount_cents":7500,"date":"2026-05-13","project":"Bottlecapps"},{"id":4407727784,"username":"Jacob","project_id":213640418,"description":"to-do list review, Patrick follow-ups, agenda prep","billable":true,"hours":0.5,"rate":27500,"amount_cents":13750,"date":"2026-05-13","project":"Red Apple Fireworks"},{"id":4408216369,"username":"Alexis","project_id":206218387,"description":"Daily Stripe Payments","billable":true,"hours":1.0,"rate":8000,"amount_cents":8000,"date":"2026-05-13","project":"Hyer"},{"id":4406606846,"username":"Brian Stanley","project_id":215858961,"description":"Project Status Dashboard","billable":true,"hours":1.47,"rate":15000,"amount_cents":22000,"date":"2026-05-13","project":"Berg"},{"id":4407362122,"username":"Alexis","project_id":215700227,"description":"Clearing Ramp transactions from April now that is working","billable":true,"hours":3.0,"rate":10000,"amount_cents":30000,"date":"2026-05-13","project":"Chew"},{"id":4407362460,"username":"Alexis","project_id":215700227,"description":"Making fedex payments","billable":true,"hours":1.0,"rate":10000,"amount_cents":10000,"date":"2026-05-13","project":"Chew"},{"id":4409339874,"username":"Austin","project_id":206218387,"description":"Hyer - Put together slides for monthly financials","billable":true,"hours":0.5,"rate":25000,"amount_cents":12500,"date":"2026-05-14","project":"Hyer"},{"id":4409151251,"username":"Jacob","project_id":206576167,"description":"Konscious updates - Costco reach out, Collin coordination, refund savings report","billable":true,"hours":0.75,"rate":0,"amount_cents":0,"date":"2026-05-14","project":"Konscious"},{"id":4407588381,"username":"Brian Stanley","project_id":215858961,"description":"Controller Monthly Package Prep","billable":true,"hours":3.27,"rate":15000,"amount_cents":49000,"date":"2026-05-14","project":"Berg"},{"id":4409144622,"username":"Jacob","project_id":213640418,"description":"Red Apple Modeling - Cash Flow updates (roll forward through 2027, forecast revi","billable":true,"hours":1.5,"rate":27500,"amount_cents":41250,"date":"2026-05-14","project":"Red Apple Fireworks"},{"id":4407884653,"username":"Christian","project_id":215858961,"description":"Engagement Mgmt.","billable":true,"hours":0.25,"rate":25000,"amount_cents":6250,"date":"2026-05-14","project":"Berg"},{"id":4415248880,"username":"Joseph","project_id":213038766,"description":"Everbloom port to Claude Managed Agent","billable":true,"hours":2.75,"rate":0,"amount_cents":0,"date":"2026-05-14","project":"Everbloom"},{"id":4415442846,"username":"John","project_id":206218387,"description":"Call with Thomas","billable":true,"hours":0.5,"rate":15000,"amount_cents":7500,"date":"2026-05-14","project":"Hyer"},{"id":4408219794,"username":"Alexis","project_id":213640418,"description":"Register Check Red Apple","billable":true,"hours":1.5,"rate":8000,"amount_cents":12000,"date":"2026-05-14","project":"Red Apple Fireworks"},{"id":4409339731,"username":"Austin","project_id":206218387,"description":"Hyer - financials update and presentation build","billable":true,"hours":1.75,"rate":25000,"amount_cents":43750,"date":"2026-05-14","project":"Hyer"},{"id":4407988549,"username":"Brian Stanley","project_id":219179204,"description":"Meeting Follow Up Actions","billable":true,"hours":0.8,"rate":17500,"amount_cents":14000,"date":"2026-05-14","project":"VRS"},{"id":4408218541,"username":"Alexis","project_id":206218387,"description":"Daily Stripe Payments","billable":true,"hours":1.0,"rate":8000,"amount_cents":8000,"date":"2026-05-14","project":"Hyer"},{"id":4408107660,"username":"Brian Stanley","project_id":215858961,"description":"Project Status Dashboard - Meeting with Customer","billable":true,"hours":0.58,"rate":15000,"amount_cents":8750,"date":"2026-05-14","project":"Berg"},{"id":4408219285,"username":"Alexis","project_id":208363068,"description":"Chew Hyer Red Apple Documenting MEC process weekly daily monthly","billable":false,"hours":2.0,"rate":0,"amount_cents":0,"date":"2026-05-14","project":"QuantFi"},{"id":4415440506,"username":"John","project_id":206218387,"description":"Tipalti Updates","billable":true,"hours":3.0,"rate":15000,"amount_cents":45000,"date":"2026-05-14","project":"Hyer"},{"id":4408220017,"username":"Alexis","project_id":215700227,"description":"BILL.com clearing, started reconciling process against QBO","billable":true,"hours":2.0,"rate":10000,"amount_cents":20000,"date":"2026-05-14","project":"Chew"},{"id":4412151448,"username":"Patrick","project_id":213640418,"description":"Q1 and April COGS review RA","billable":true,"hours":1.25,"rate":17500,"amount_cents":21875,"date":"2026-05-14","project":"Red Apple Fireworks"},{"id":4409340217,"username":"Austin","project_id":206218387,"description":"Hyer - Forecast Updates and Monthly Presentation","billable":true,"hours":2.5,"rate":25000,"amount_cents":62500,"date":"2026-05-15","project":"Hyer"},{"id":4409403612,"username":"Jacob","project_id":206576167,"description":"Decile meeting, Stripe meeting, stripe follow-up notes","billable":true,"hours":1.25,"rate":0,"amount_cents":0,"date":"2026-05-15","project":"Konscious"},{"id":4409324951,"username":"Christian","project_id":206218387,"description":"Engagement Mgmt.","billable":true,"hours":0.75,"rate":25000,"amount_cents":18750,"date":"2026-05-15","project":"Hyer"},{"id":4409642710,"username":"Alexis","project_id":213640418,"description":"Bank register check, land rover loan work","billable":true,"hours":1.0,"rate":8000,"amount_cents":8000,"date":"2026-05-15","project":"Red Apple Fireworks"},{"id":4409244234,"username":"Brian Stanley","project_id":219179204,"description":"Client Meeting","billable":true,"hours":0.47,"rate":17500,"amount_cents":8220,"date":"2026-05-15","project":"VRS"},{"id":4409276708,"username":"Brian Stanley","project_id":215858961,"description":"Controller Monthly Meeting","billable":true,"hours":1.38,"rate":15000,"amount_cents":20750,"date":"2026-05-15","project":"Berg"},{"id":4409340076,"username":"Austin","project_id":206218387,"description":"Hyer - Monthly Financial & Forecast Review","billable":true,"hours":1.0,"rate":25000,"amount_cents":25000,"date":"2026-05-15","project":"Hyer"},{"id":4409405130,"username":"Jacob","project_id":213640418,"description":"Red apple prep - cash flow and model review, meeting","billable":true,"hours":1.0,"rate":27500,"amount_cents":27500,"date":"2026-05-15","project":"Red Apple Fireworks"},{"id":4409642750,"username":"Alexis","project_id":215700227,"description":"Working on bill.com and ramp transactions","billable":true,"hours":2.25,"rate":10000,"amount_cents":22500,"date":"2026-05-15","project":"Chew"},{"id":4412151888,"username":"Patrick","project_id":213640418,"description":"Big 3 FINS review April","billable":true,"hours":1.0,"rate":17500,"amount_cents":17500,"date":"2026-05-15","project":"Red Apple Fireworks"},{"id":4413739193,"username":"Miko","project_id":213038766,"description":"Master Model Recon","billable":true,"hours":1.5,"rate":25000,"amount_cents":37500,"date":"2026-05-15","project":"Everbloom"},{"id":4409642838,"username":"Alexis","project_id":213640418,"description":"Weekly Financial Meeting","billable":true,"hours":0.75,"rate":8000,"amount_cents":6000,"date":"2026-05-15","project":"Red Apple Fireworks"},{"id":4409642778,"username":"Alexis","project_id":206218387,"description":"Finishing daily payments","billable":true,"hours":0.75,"rate":8000,"amount_cents":6000,"date":"2026-05-15","project":"Hyer"},{"id":4409645980,"username":"Alexis","project_id":213640418,"description":"bank transactions big 3","billable":true,"hours":1.25,"rate":8000,"amount_cents":10000,"date":"2026-05-15","project":"Red Apple Fireworks"},{"id":4421354859,"username":"Brian Stanley","project_id":216893794,"description":"Bottlecaps Bookkeeping","billable":true,"hours":5.15,"rate":10000,"amount_cents":51500,"date":"2026-05-16","project":"Bottlecapps"},{"id":4412152849,"username":"Patrick","project_id":213640418,"description":"Red Apple LLC Gen Liab Adjustments and I/C","billable":true,"hours":1.0,"rate":17500,"amount_cents":17500,"date":"2026-05-17","project":"Red Apple Fireworks"},{"id":4412153112,"username":"Patrick","project_id":213640418,"description":"COGS RAFW review","billable":true,"hours":0.5,"rate":17500,"amount_cents":8750,"date":"2026-05-17","project":"Red Apple Fireworks"},{"id":4416720600,"username":"Kenny","project_id":206576167,"description":"Meetings","billable":true,"hours":1.0,"rate":0,"amount_cents":0,"date":"2026-05-18","project":"Konscious"},{"id":4421185252,"username":"Paul","project_id":215700227,"description":"Emails, ramp, bill.com","billable":true,"hours":0.5,"rate":15000,"amount_cents":7500,"date":"2026-05-18","project":"Chew"},{"id":4411458352,"username":"Jacob","project_id":213640418,"description":"RAF Weekly Sales Update, Report Pundit investigation, weekly sales commentary","billable":true,"hours":1.0,"rate":27500,"amount_cents":27500,"date":"2026-05-18","project":"Red Apple Fireworks"},{"id":4411548352,"username":"Jacob","project_id":206576167,"description":"RJ Financials Gathering and Update, Costco Anlaysis scope out","billable":true,"hours":0.5,"rate":0,"amount_cents":0,"date":"2026-05-18","project":"Konscious"},{"id":4416720948,"username":"Kenny","project_id":213640418,"description":"Meetings","billable":true,"hours":1.5,"rate":27500,"amount_cents":41250,"date":"2026-05-18","project":"Red Apple Fireworks"},{"id":4417107718,"username":"Joseph","project_id":219432326,"description":"Fexa Orientation Scope Tightening","billable":true,"hours":2.0,"rate":0,"amount_cents":0,"date":"2026-05-18","project":"Fexa"},{"id":4421355948,"username":"Brian Stanley","project_id":216893794,"description":"Bottlecaps Bookkeeping","billable":true,"hours":4.0,"rate":10000,"amount_cents":40000,"date":"2026-05-18","project":"Bottlecapps"},{"id":4417108134,"username":"Joseph","project_id":213038766,"description":"Everbloom Slack Bridge Architecture","billable":true,"hours":2.0,"rate":0,"amount_cents":0,"date":"2026-05-18","project":"Everbloom"},{"id":4411908555,"username":"Jacob","project_id":206576167,"description":"Internal meeting, agenda prep, Costco framework","billable":true,"hours":0.5,"rate":0,"amount_cents":0,"date":"2026-05-18","project":"Konscious"},{"id":4411908846,"username":"Jacob","project_id":213640418,"description":"Internal meeting, Patrick follow-ups, weekly prep","billable":true,"hours":0.75,"rate":27500,"amount_cents":20625,"date":"2026-05-18","project":"Red Apple Fireworks"},{"id":4411909208,"username":"Jacob","project_id":206576167,"description":"Costco analysis and updates","billable":true,"hours":1.0,"rate":0,"amount_cents":0,"date":"2026-05-18","project":"Konscious"},{"id":4412068107,"username":"Alexis","project_id":206218387,"description":"Hyer weekly AR meeting","billable":true,"hours":0.75,"rate":8000,"amount_cents":6000,"date":"2026-05-18","project":"Hyer"},{"id":4412153328,"username":"Patrick","project_id":213640418,"description":"Internal sync","billable":true,"hours":0.5,"rate":17500,"amount_cents":8750,"date":"2026-05-18","project":"Red Apple Fireworks"},{"id":4412070603,"username":"Alexis","project_id":213640418,"description":"RED apple weekly meeting and review","billable":true,"hours":1.0,"rate":8000,"amount_cents":8000,"date":"2026-05-18","project":"Red Apple Fireworks"},{"id":4417108954,"username":"Joseph","project_id":213038766,"description":"Everbloom Slack Bridge Implementation","billable":true,"hours":4.0,"rate":0,"amount_cents":0,"date":"2026-05-18","project":"Everbloom"},{"id":4413739739,"username":"Miko","project_id":213038766,"description":"Internal Sync","billable":true,"hours":0.5,"rate":25000,"amount_cents":12500,"date":"2026-05-18","project":"Everbloom"},{"id":4412070831,"username":"Alexis","project_id":208363068,"description":"Weekly meeting","billable":false,"hours":0.5,"rate":0,"amount_cents":0,"date":"2026-05-18","project":"QuantFi"},{"id":4412069893,"username":"Alexis","project_id":206218387,"description":"Daily Stripe Payments","billable":true,"hours":1.5,"rate":8000,"amount_cents":12000,"date":"2026-05-18","project":"Hyer"},{"id":4412070092,"username":"Alexis","project_id":215700227,"description":"Bill.com and Ramp Update","billable":true,"hours":1.0,"rate":10000,"amount_cents":10000,"date":"2026-05-18","project":"Chew"},{"id":4419469162,"username":"Alexis","project_id":208363068,"description":"Process doc 1","billable":false,"hours":1.5,"rate":0,"amount_cents":0,"date":"2026-05-18","project":"QuantFi"},{"id":4421774425,"username":"Austin","project_id":206218387,"description":"Hyer - update fin model for QBR summary tables","billable":true,"hours":2.5,"rate":25000,"amount_cents":62500,"date":"2026-05-19","project":"Hyer"},{"id":4416720532,"username":"Kenny","project_id":206576167,"description":"Meetings","billable":true,"hours":1.0,"rate":0,"amount_cents":0,"date":"2026-05-19","project":"Konscious"},{"id":4417109586,"username":"Joseph","project_id":208363068,"description":"Memory store research for Claude Managed Agents","billable":false,"hours":1.5,"rate":0,"amount_cents":0,"date":"2026-05-19","project":"QuantFi"},{"id":4413037371,"username":"Brian Stanley","project_id":216893794,"description":"April Books Review & Monthly Controller Report","billable":true,"hours":1.5,"rate":15000,"amount_cents":22500,"date":"2026-05-19","project":"Bottlecapps"},{"id":4416311670,"username":"Jacob","project_id":206576167,"description":"Refunds analysis update and review, agenda review, to-dos update","billable":true,"hours":1.0,"rate":0,"amount_cents":0,"date":"2026-05-19","project":"Konscious"},{"id":4417109874,"username":"Joseph","project_id":213038766,"description":"Everbloom Composio auth wiring","billable":true,"hours":2.25,"rate":0,"amount_cents":0,"date":"2026-05-19","project":"Everbloom"},{"id":4413521358,"username":"Christian","project_id":206218387,"description":"Engagement Mgmt.","billable":true,"hours":1.5,"rate":25000,"amount_cents":37500,"date":"2026-05-19","project":"Hyer"},{"id":4421357029,"username":"Brian Stanley","project_id":216893794,"description":"Bottlecaps Bookkeeping","billable":true,"hours":7.32,"rate":10000,"amount_cents":73167,"date":"2026-05-19","project":"Bottlecapps"},{"id":4421774593,"username":"Austin","project_id":206218387,"description":"Hyer - Additional work on summary tables","billable":true,"hours":0.5,"rate":25000,"amount_cents":12500,"date":"2026-05-19","project":"Hyer"},{"id":4421774662,"username":"Austin","project_id":206218387,"description":"QuantFi <> Hyer - Weekly Sync","billable":true,"hours":0.5,"rate":25000,"amount_cents":12500,"date":"2026-05-19","project":"Hyer"},{"id":4416312525,"username":"Jacob","project_id":206576167,"description":"Finance team meeting prep and meeting, follow-ups, refund updates, costco follow","billable":true,"hours":1.0,"rate":0,"amount_cents":0,"date":"2026-05-19","project":"Konscious"},{"id":4417110071,"username":"Joseph","project_id":213038766,"description":"Everbloom magic-link flow","billable":true,"hours":1.75,"rate":0,"amount_cents":0,"date":"2026-05-19","project":"Everbloom"},{"id":4421774826,"username":"Austin","project_id":206218387,"description":"Hyer - QBR summaries update post call","billable":true,"hours":1.5,"rate":25000,"amount_cents":37500,"date":"2026-05-19","project":"Hyer"},{"id":4416313683,"username":"Jacob","project_id":213640418,"description":"CapEx file from Patrick review","billable":true,"hours":0.5,"rate":27500,"amount_cents":13750,"date":"2026-05-19","project":"Red Apple Fireworks"},{"id":4415789309,"username":"Alexis","project_id":206218387,"description":"Daily Stripe Payments","billable":true,"hours":1.0,"rate":8000,"amount_cents":8000,"date":"2026-05-19","project":"Hyer"},{"id":4415790031,"username":"Alexis","project_id":213640418,"description":"Bank register updating 10+ entities","billable":true,"hours":3.0,"rate":8000,"amount_cents":24000,"date":"2026-05-19","project":"Red Apple Fireworks"},{"id":4421774995,"username":"Austin","project_id":206218387,"description":"Hyer - Update financial model with Inventory assumption held across both cases","billable":true,"hours":0.25,"rate":25000,"amount_cents":6250,"date":"2026-05-19","project":"Hyer"},{"id":4413794483,"username":"Miko","project_id":213038766,"description":"Master Model Recon","billable":true,"hours":1.75,"rate":25000,"amount_cents":43750,"date":"2026-05-19","project":"Everbloom"},{"id":4415790680,"username":"Alexis","project_id":215700227,"description":"Downloading perdue expenses","billable":true,"hours":1.5,"rate":10000,"amount_cents":15000,"date":"2026-05-19","project":"Chew"},{"id":4416720387,"username":"Kenny","project_id":206576167,"description":"Meetings","billable":true,"hours":1.0,"rate":0,"amount_cents":0,"date":"2026-05-20","project":"Konscious"},{"id":4416779140,"username":"Jacob","project_id":206576167,"description":"Costco analysis updates","billable":true,"hours":0.5,"rate":0,"amount_cents":0,"date":"2026-05-20","project":"Konscious"},{"id":4415254989,"username":"Joseph","project_id":208363068,"description":"Project Automate Internal Weekly Call","billable":false,"hours":1.0,"rate":0,"amount_cents":0,"date":"2026-05-20","project":"QuantFi"},{"id":4416315951,"username":"Jacob","project_id":213640418,"description":"Shopify reporting review, meeting with Patrick on shopify, report creation, mode","billable":true,"hours":1.5,"rate":27500,"amount_cents":41250,"date":"2026-05-20","project":"Red Apple Fireworks"},{"id":4415308278,"username":"John","project_id":206218387,"description":"Mid States Payment Process & Tipalti","billable":true,"hours":1.0,"rate":15000,"amount_cents":15000,"date":"2026-05-20","project":"Hyer"},{"id":4415789408,"username":"Alexis","project_id":206218387,"description":"Daily Stripe Payments","billable":true,"hours":1.0,"rate":8000,"amount_cents":8000,"date":"2026-05-20","project":"Hyer"},{"id":4415789998,"username":"Alexis","project_id":213640418,"description":"Bank register updating 10+ entities","billable":true,"hours":2.25,"rate":8000,"amount_cents":18000,"date":"2026-05-20","project":"Red Apple Fireworks"},{"id":4421775060,"username":"Austin","project_id":206218387,"description":"Hyer - Slack communication update of QBR presentation","billable":true,"hours":1.5,"rate":25000,"amount_cents":37500,"date":"2026-05-20","project":"Hyer"},{"id":4415791505,"username":"Alexis","project_id":213640418,"description":"Reconciling items","billable":true,"hours":1.25,"rate":8000,"amount_cents":10000,"date":"2026-05-20","project":"Red Apple Fireworks"},{"id":4415487224,"username":"Brian Stanley","project_id":216893794,"description":"Report Running","billable":true,"hours":1.35,"rate":15000,"amount_cents":20296,"date":"2026-05-20","project":"Bottlecapps"},{"id":4415791046,"username":"Alexis","project_id":215700227,"description":"Making fedex payments","billable":true,"hours":1.5,"rate":10000,"amount_cents":15000,"date":"2026-05-20","project":"Chew"},{"id":4421775241,"username":"Austin","project_id":206218387,"description":"Hyer - Refinment of commentary and update tables in QBR Deck","billable":true,"hours":1.5,"rate":25000,"amount_cents":37500,"date":"2026-05-21","project":"Hyer"},{"id":4416352771,"username":"Brian Stanley","project_id":215858961,"description":"Project Status Dashboard","billable":true,"hours":1.08,"rate":15000,"amount_cents":16250,"date":"2026-05-21","project":"Berg"},{"id":4416720489,"username":"Kenny","project_id":206576167,"description":"Meetings","billable":true,"hours":2.0,"rate":0,"amount_cents":0,"date":"2026-05-21","project":"Konscious"},{"id":4416777550,"username":"Jacob","project_id":206576167,"description":"Costco meeting prep, meeting with Alex on Costco, Stripe meeting","billable":true,"hours":1.5,"rate":0,"amount_cents":0,"date":"2026-05-21","project":"Konscious"},{"id":4416808756,"username":"John","project_id":206218387,"description":"Tipalti Updates","billable":true,"hours":2.0,"rate":15000,"amount_cents":30000,"date":"2026-05-21","project":"Hyer"},{"id":4417110748,"username":"Joseph","project_id":219432326,"description":"Fexa Demo Call Prep","billable":true,"hours":1.75,"rate":0,"amount_cents":0,"date":"2026-05-21","project":"Fexa"},{"id":4421775414,"username":"Austin","project_id":206218387,"description":"Hyer - Update of financial model and slides for cash flow","billable":true,"hours":1.0,"rate":25000,"amount_cents":25000,"date":"2026-05-21","project":"Hyer"},{"id":4416899364,"username":"Christian","project_id":206218387,"description":"Engagement Mgmt.","billable":true,"hours":1.25,"rate":25000,"amount_cents":31250,"date":"2026-05-21","project":"Hyer"},{"id":4417110351,"username":"Joseph","project_id":219432326,"description":"Fexa Demo Call","billable":true,"hours":1.25,"rate":0,"amount_cents":0,"date":"2026-05-21","project":"Fexa"},{"id":4417143472,"username":"Jacob","project_id":206576167,"description":"Enclave model updates and forecast review, meeting with GT and RJ on budget and ","billable":true,"hours":1.75,"rate":0,"amount_cents":0,"date":"2026-05-21","project":"Konscious"},{"id":4421775549,"username":"Austin","project_id":206218387,"description":"Hyer - Update of financial model and slides for cash flow","billable":true,"hours":0.5,"rate":25000,"amount_cents":12500,"date":"2026-05-21","project":"Hyer"},{"id":4416899472,"username":"Christian","project_id":216893794,"description":"Engagement Mgmt.","billable":true,"hours":0.25,"rate":25000,"amount_cents":6250,"date":"2026-05-21","project":"Bottlecapps"},{"id":4421775726,"username":"Austin","project_id":206218387,"description":"Hyer QBR Review","billable":true,"hours":1.0,"rate":25000,"amount_cents":25000,"date":"2026-05-21","project":"Hyer"},{"id":4415789284,"username":"Alexis","project_id":206218387,"description":"Daily Stripe Payments","billable":true,"hours":1.25,"rate":8000,"amount_cents":10000,"date":"2026-05-21","project":"Hyer"},{"id":4421187435,"username":"Paul","project_id":215700227,"description":"Emails, ramp, bill.com","billable":true,"hours":0.5,"rate":15000,"amount_cents":7500,"date":"2026-05-21","project":"Chew"},{"id":4419463493,"username":"Alexis","project_id":213640418,"description":"Reconciling mid month items","billable":true,"hours":2.0,"rate":8000,"amount_cents":16000,"date":"2026-05-21","project":"Red Apple Fireworks"},{"id":4419464650,"username":"Alexis","project_id":213640418,"description":"updating bank register","billable":true,"hours":2.0,"rate":8000,"amount_cents":16000,"date":"2026-05-21","project":"Red Apple Fireworks"},{"id":4421775891,"username":"Austin","project_id":206218387,"description":"Hyer - Model review chat with CS, follow up audit","billable":true,"hours":2.75,"rate":25000,"amount_cents":68750,"date":"2026-05-21","project":"Hyer"},{"id":4419463729,"username":"Alexis","project_id":215700227,"description":"QBO categorization","billable":true,"hours":0.75,"rate":10000,"amount_cents":7500,"date":"2026-05-21","project":"Chew"},{"id":4421776073,"username":"Austin","project_id":206218387,"description":"Hyer - additional review of changed assumptions, creation of Bridge tab","billable":true,"hours":0.75,"rate":25000,"amount_cents":18750,"date":"2026-05-22","project":"Hyer"},{"id":4420139770,"username":"Jacob","project_id":206576167,"description":"RJ follow-ups - budget review, refund analysis updates","billable":true,"hours":0.75,"rate":0,"amount_cents":0,"date":"2026-05-22","project":"Konscious"},{"id":4418264492,"username":"Christian","project_id":206218387,"description":"Engagement Mgmt.","billable":true,"hours":1.75,"rate":25000,"amount_cents":43750,"date":"2026-05-22","project":"Hyer"},{"id":4418389017,"username":"Byoon","project_id":216893794,"description":"Bottlecapps model update","billable":true,"hours":2.5,"rate":25000,"amount_cents":62500,"date":"2026-05-22","project":"Bottlecapps"},{"id":4421776284,"username":"Austin","project_id":206218387,"description":"Hyer Model","billable":true,"hours":0.5,"rate":25000,"amount_cents":12500,"date":"2026-05-22","project":"Hyer"},{"id":4419463961,"username":"Alexis","project_id":206218387,"description":"reconciling stripe, creating doc, and daily payments","billable":true,"hours":2.0,"rate":8000,"amount_cents":16000,"date":"2026-05-22","project":"Hyer"},{"id":4421339640,"username":"Brian Stanley","project_id":216893794,"description":"Client Meeting","billable":true,"hours":0.5,"rate":15000,"amount_cents":7500,"date":"2026-05-22","project":"Bottlecapps"},{"id":4421776532,"username":"Austin","project_id":206218387,"description":"Hyer - Review of Jamies Inv update, comunication to Lynn for translation of fore","billable":true,"hours":0.5,"rate":25000,"amount_cents":12500,"date":"2026-05-22","project":"Hyer"},{"id":4419464253,"username":"Alexis","project_id":213640418,"description":"updating bank register for all entities","billable":true,"hours":2.75,"rate":8000,"amount_cents":22000,"date":"2026-05-22","project":"Red Apple Fireworks"},{"id":4419464453,"username":"Alexis","project_id":215700227,"description":"finishing weekly bill.com and ramp entries","billable":true,"hours":1.25,"rate":10000,"amount_cents":12500,"date":"2026-05-22","project":"Chew"},{"id":4420140184,"username":"Jacob","project_id":213640418,"description":"Weekly sales update and study, model review, April financials quick view","billable":true,"hours":1.0,"rate":27500,"amount_cents":27500,"date":"2026-05-25","project":"Red Apple Fireworks"},{"id":4421668312,"username":"Alexis","project_id":208363068,"description":"OOO","billable":false,"hours":8.0,"rate":0,"amount_cents":0,"date":"2026-05-25","project":"QuantFi"},{"id":4420140444,"username":"Jacob","project_id":206576167,"description":"Model updates, agenda prep, costco follow-ups","billable":true,"hours":1.0,"rate":0,"amount_cents":0,"date":"2026-05-25","project":"Konscious"},{"id":4421768650,"username":"Jacob","project_id":206576167,"description":"Konscious model updates (Konscious & VH), forecast reviews and alignment with RJ","billable":true,"hours":1.5,"rate":0,"amount_cents":0,"date":"2026-05-26","project":"Konscious"},{"id":4421787651,"username":"Byoon","project_id":215858961,"description":"Model update Mar- April","billable":true,"hours":4.0,"rate":25000,"amount_cents":100000,"date":"2026-05-26","project":"Berg"},{"id":4421829559,"username":"Kenny","project_id":206576167,"description":"Meeting & Admin","billable":true,"hours":2.0,"rate":0,"amount_cents":0,"date":"2026-05-26","project":"Konscious"},{"id":4421385855,"username":"Brian Stanley","project_id":219179204,"description":"Meeting Follow Up Actions","billable":true,"hours":1.01,"rate":17500,"amount_cents":17762,"date":"2026-05-26","project":"VRS"},{"id":4421773027,"username":"Christian","project_id":213038766,"description":"Engagement Mgmt.","billable":true,"hours":1.25,"rate":0,"amount_cents":0,"date":"2026-05-26","project":"Everbloom"},{"id":4422176733,"username":"Miko","project_id":213038766,"description":"Client Sync and Roadmap Pivot","billable":true,"hours":1.0,"rate":25000,"amount_cents":25000,"date":"2026-05-26","project":"Everbloom"},{"id":4421773138,"username":"Christian","project_id":206218387,"description":"Engagement Mgmt.","billable":true,"hours":0.25,"rate":25000,"amount_cents":6250,"date":"2026-05-26","project":"Hyer"},{"id":4421937413,"username":"Jacob","project_id":206576167,"description":"Costco (call review, analysis updates and review), agenda prep, finance team wee","billable":true,"hours":1.5,"rate":0,"amount_cents":0,"date":"2026-05-26","project":"Konscious"},{"id":4421710098,"username":"Brian Stanley","project_id":215858961,"description":"Meeting prep for CEO","billable":true,"hours":1.77,"rate":15000,"amount_cents":26558,"date":"2026-05-26","project":"Berg"},{"id":4422030573,"username":"Alexis","project_id":208363068,"description":"Weekly meeting","billable":false,"hours":0.5,"rate":0,"amount_cents":0,"date":"2026-05-26","project":"QuantFi"},{"id":4421778632,"username":"Austin","project_id":206218387,"description":"Hyer - Slack comunications over 2025 actuals","billable":true,"hours":0.25,"rate":25000,"amount_cents":6250,"date":"2026-05-26","project":"Hyer"},{"id":4421905189,"username":"Christian","project_id":216893794,"description":"Engagement Mgmt.","billable":true,"hours":0.5,"rate":25000,"amount_cents":12500,"date":"2026-05-26","project":"Bottlecapps"},{"id":4422030862,"username":"Alexis","project_id":206218387,"description":"GemCap Reconciling Fixing payments","billable":true,"hours":1.0,"rate":8000,"amount_cents":8000,"date":"2026-05-26","project":"Hyer"},{"id":4422031134,"username":"Alexis","project_id":206218387,"description":"Finishing daily payments","billable":true,"hours":1.0,"rate":8000,"amount_cents":8000,"date":"2026-05-26","project":"Hyer"},{"id":4422871772,"username":"Brian Stanley","project_id":216893794,"description":"Client Meeting","billable":true,"hours":0.5,"rate":15000,"amount_cents":7500,"date":"2026-05-26","project":"Bottlecapps"},{"id":4422872535,"username":"Brian Stanley","project_id":219179204,"description":"Client Meeting","billable":true,"hours":1.0,"rate":17500,"amount_cents":17500,"date":"2026-05-26","project":"VRS"},{"id":4423228672,"username":"Jacob","project_id":213640418,"description":"To-do list and outstanding items review, internal meeting","billable":true,"hours":0.75,"rate":27500,"amount_cents":20625,"date":"2026-05-26","project":"Red Apple Fireworks"},{"id":4424507948,"username":"Miko","project_id":213038766,"description":"Roadmap Draft","billable":true,"hours":0.5,"rate":25000,"amount_cents":12500,"date":"2026-05-26","project":"Everbloom"},{"id":4422033682,"username":"Alexis","project_id":215700227,"description":"Working on Accruals, BILL, daily register","billable":true,"hours":1.5,"rate":10000,"amount_cents":15000,"date":"2026-05-26","project":"Chew"},{"id":4422030356,"username":"Alexis","project_id":213640418,"description":"Weekly Finance Meeting","billable":true,"hours":0.5,"rate":8000,"amount_cents":4000,"date":"2026-05-26","project":"Red Apple Fireworks"},{"id":4422873875,"username":"Brian Stanley","project_id":219179204,"description":"VRS Audit List","billable":true,"hours":0.25,"rate":17500,"amount_cents":4375,"date":"2026-05-27","project":"VRS"},{"id":4422874364,"username":"Brian Stanley","project_id":219179204,"description":"VRS Audit List","billable":true,"hours":2.46,"rate":17500,"amount_cents":43045,"date":"2026-05-27","project":"VRS"},{"id":4423261148,"username":"Jacob","project_id":206576167,"description":"Decile review","billable":true,"hours":0.75,"rate":0,"amount_cents":0,"date":"2026-05-27","project":"Konscious"},{"id":4425020443,"username":"Byoon","project_id":216893794,"description":"Bottlecapps model meeting","billable":true,"hours":0.5,"rate":25000,"amount_cents":12500,"date":"2026-05-27","project":"Bottlecapps"},{"id":4424507285,"username":"Miko","project_id":213038766,"description":"Internal Sync and Client Sync","billable":true,"hours":1.0,"rate":25000,"amount_cents":25000,"date":"2026-05-27","project":"Everbloom"},{"id":4423598989,"username":"Jacob","project_id":213640418,"description":"Model review, outstanding Columbia items and emails, Patrick touchbase","billable":true,"hours":1.0,"rate":27500,"amount_cents":27500,"date":"2026-05-27","project":"Red Apple Fireworks"},{"id":4425010208,"username":"Alexis","project_id":213640418,"description":"updating bank register","billable":true,"hours":2.0,"rate":8000,"amount_cents":16000,"date":"2026-05-27","project":"Red Apple Fireworks"},{"id":4423833402,"username":"Brian Stanley","project_id":216893794,"description":"Client Meeting","billable":true,"hours":0.5,"rate":15000,"amount_cents":7500,"date":"2026-05-27","project":"Bottlecapps"},{"id":4424710992,"username":"Jacob","project_id":206576167,"description":"To-do list update, Slacks, Decile discussion with Parth","billable":true,"hours":0.5,"rate":0,"amount_cents":0,"date":"2026-05-27","project":"Konscious"},{"id":4425010905,"username":"Alexis","project_id":215700227,"description":"Ramp BILL.com","billable":true,"hours":1.0,"rate":10000,"amount_cents":10000,"date":"2026-05-27","project":"Chew"},{"id":4425021719,"username":"Alexis","project_id":206218387,"description":"Reconciliation of gemcap, fixing incorrect amounts, adding disbursements","billable":true,"hours":2.5,"rate":8000,"amount_cents":20000,"date":"2026-05-27","project":"Hyer"},{"id":4423833053,"username":"Brian Stanley","project_id":215858961,"description":"Project Status Dashboard","billable":true,"hours":0.68,"rate":15000,"amount_cents":10250,"date":"2026-05-27","project":"Berg"},{"id":4425378118,"username":"Jacob","project_id":206576167,"description":"Decile review, coversation with Parth on Decile, Paypal contract review","billable":true,"hours":1.0,"rate":0,"amount_cents":0,"date":"2026-05-28","project":"Konscious"},{"id":4425020193,"username":"Byoon","project_id":215858961,"description":"Berg Call","billable":true,"hours":0.75,"rate":25000,"amount_cents":18750,"date":"2026-05-28","project":"Berg"},{"id":4425233049,"username":"Christian","project_id":215858961,"description":"Engagement Mgmt.","billable":true,"hours":0.75,"rate":25000,"amount_cents":18750,"date":"2026-05-28","project":"Berg"},{"id":4425379322,"username":"Jacob","project_id":206576167,"description":"Paypal other fees investigation, Stripe authorization file review","billable":true,"hours":0.5,"rate":0,"amount_cents":0,"date":"2026-05-28","project":"Konscious"},{"id":4425379896,"username":"Jacob","project_id":213640418,"description":"Slack comms - Emma est. expenses request, cash flow updates and forecast review,","billable":true,"hours":2.0,"rate":27500,"amount_cents":55000,"date":"2026-05-28","project":"Red Apple Fireworks"},{"id":4426560669,"username":"Brian Stanley","project_id":215858961,"description":"Client Meeting","billable":true,"hours":2.0,"rate":15000,"amount_cents":30000,"date":"2026-05-28","project":"Berg"},{"id":4426590156,"username":"Jacob","project_id":213640418,"description":"RAF Agenda review and sharing, model review (gross margin recording), Patrick co","billable":true,"hours":0.5,"rate":27500,"amount_cents":13750,"date":"2026-05-29","project":"Red Apple Fireworks"},{"id":4426578215,"username":"Brian Stanley","project_id":219179204,"description":"VRS Audit List","billable":true,"hours":0.92,"rate":17500,"amount_cents":16042,"date":"2026-05-29","project":"VRS"},{"id":4426578299,"username":"Brian Stanley","project_id":219179204,"description":"Client Meeting","billable":true,"hours":0.56,"rate":17500,"amount_cents":9742,"date":"2026-05-29","project":"VRS"}];
+
+function showTab(tab) {
+  document.getElementById('view-dashboard').style.display = tab === 'dashboard' ? '' : 'none';
+  document.getElementById('view-transactions').style.display = tab === 'transactions' ? '' : 'none';
+  document.getElementById('tab-dashboard').style.borderBottomColor = tab === 'dashboard' ? '#3b82f6' : 'transparent';
+  document.getElementById('tab-dashboard').style.color = tab === 'dashboard' ? '#3b82f6' : '#6b7280';
+  document.getElementById('tab-dashboard').style.fontWeight = tab === 'dashboard' ? '600' : '500';
+  document.getElementById('tab-transactions').style.borderBottomColor = tab === 'transactions' ? '#3b82f6' : 'transparent';
+  document.getElementById('tab-transactions').style.color = tab === 'transactions' ? '#3b82f6' : '#6b7280';
+  document.getElementById('tab-transactions').style.fontWeight = tab === 'transactions' ? '600' : '500';
+  if (tab === 'transactions') renderTxns(ALL_TXNS);
+}
+
+function filterTxns() {
+  const search = document.getElementById('txn-search').value.toLowerCase();
+  const person = document.getElementById('txn-filter-person').value;
+  const project = document.getElementById('txn-filter-project').value;
+  const billable = document.getElementById('txn-filter-billable').value;
+  let filtered = ALL_TXNS.filter(t => {
+    if (search && !t.description.toLowerCase().includes(search) && !t.username.toLowerCase().includes(search) && !t.project.toLowerCase().includes(search)) return false;
+    if (person && t.username !== person) return false;
+    if (project && t.project !== project) return false;
+    if (billable === 'true' && !t.billable) return false;
+    if (billable === 'false' && t.billable) return false;
+    return true;
+  });
+  renderTxns(filtered);
+}
+
+function renderTxns(txns) {
+  const tbody = document.getElementById('txn-body');
+  tbody.innerHTML = txns.map(t => `
+    <tr>
+      <td style="text-align:left;white-space:nowrap">${t.date}</td>
+      <td style="text-align:left;font-weight:500">${t.username}</td>
+      <td style="text-align:left">${t.project}</td>
+      <td style="text-align:left;max-width:320px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${t.description}">${t.description || '<em style="color:#9ca3af">no description</em>'}</td>
+      <td>${t.hours.toFixed(2)}</td>
+      <td>${t.rate ? '$'+(t.rate/100)+'/hr' : '-'}</td>
+      <td>${t.amount_cents ? '$'+(t.amount_cents/100).toFixed(2) : '-'}</td>
+      <td><span style="padding:2px 7px;border-radius:10px;font-size:10px;font-weight:600;background:${t.billable?'#f0fdf4':'#fef2f2'};color:${t.billable?'#15803d':'#dc2626'}">${t.billable?'B':'NB'}</span></td>
+    </tr>
+  `).join('');
+  const totHours = txns.reduce((a,t)=>a+t.hours,0);
+  const totAmt = txns.reduce((a,t)=>a+t.amount_cents,0);
+  const billCount = txns.filter(t=>t.billable).length;
+  document.getElementById('txn-footer').innerHTML = `
+    <span>Showing <strong>${txns.length}</strong> entries</span>
+    <span>Total hours: <strong>${totHours.toFixed(1)}h</strong></span>
+    <span>Billable: <strong>${billCount}</strong></span>
+    <span>Total amount: <strong>$${(totAmt/100).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}</strong></span>
+  `;
+}
+
+
+function doRefresh() {
+  const start = document.getElementById('range-start').value;
+  const end   = document.getElementById('range-end').value;
+  if (!start || !end) return;
+  const btn = document.getElementById('refresh-btn');
+  const status = document.getElementById('refresh-status');
+  btn.disabled = true; btn.textContent = '⏳ Requesting...';
+  status.style.color = '#f59e0b';
+  status.textContent = 'Sending request to Hermes...';
+  // Update date label
+  const s = new Date(start+'T12:00:00'), e = new Date(end+'T12:00:00');
+  const mo = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  document.getElementById('date-label').textContent =
+    (s.getMonth()===e.getMonth()&&s.getFullYear()===e.getFullYear())
+      ? mo[s.getMonth()]+' '+s.getDate()+'–'+e.getDate()+', '+e.getFullYear()
+      : mo[s.getMonth()]+' '+s.getDate()+' – '+mo[e.getMonth()]+' '+e.getDate()+', '+e.getFullYear();
+  const requestedAt = Date.now();
+  fetch('https://pending-fonts-pounds-skating.trycloudflare.com/state', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({refresh_needed:true, refresh_start:start, refresh_end:end, refresh_requested_at:requestedAt})
+  }).then(r=>r.json()).then(()=>{
+    status.textContent = '⏳ Rebuilding data... (checking every 5s)';
+    let polls=0;
+    const poll = setInterval(()=>{
+      polls++;
+      fetch('https://pending-fonts-pounds-skating.trycloudflare.com/state').then(r=>r.json()).then(state=>{
+        if (state.last_rebuilt_at && state.last_rebuilt_at > requestedAt) {
+          clearInterval(poll);
+          btn.disabled=false; btn.textContent='↻ Refresh Data';
+          status.style.color='#15803d'; status.textContent='Refreshed! Reloading...';
+          setTimeout(()=>location.reload(), 1200);
+        } else if (polls>36) {
+          clearInterval(poll); btn.disabled=false; btn.textContent='↻ Refresh Data';
+          status.style.color='#dc2626'; status.textContent='Timed out — ping Hermes';
+        } else {
+          status.textContent='⏳ Rebuilding... ('+polls*5+'s elapsed)';
+        }
+      }).catch(()=>{});
+    }, 5000);
+  }).catch(()=>{
+    btn.disabled=false; btn.textContent='↻ Refresh Data';
+    status.style.color='#dc2626'; status.textContent='Could not reach state server';
+  });
+}
+
+</script>
+</body>
+</html>
