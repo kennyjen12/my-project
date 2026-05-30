@@ -390,37 +390,6 @@ function showSaveIndicator(status) {
   el.style.display = 'block';
   if (status !== 'saving') setTimeout(() => { if(el) el.style.display = 'none'; }, 3000);
 }
-let _state = {};
-let _saveTimer = null;
-let _stateSha = null;
-
-async function loadStateFromCloud() {
-  try {
-    // Get file with SHA (needed for writes)
-    const r = await fetch(GH_API_URL, {
-      headers: { 'Authorization': 'token ' + GH_TOKEN }
-    });
-    if (r.ok) {
-      const data = await r.json();
-      _stateSha = data.sha;
-      const content = atob(data.content.replace(/\n/g,''));
-      _state = JSON.parse(content || '{}');
-      localStorage.setItem('qf_state', JSON.stringify(_state));
-    }
-  } catch(e) {
-    try { _state = JSON.parse(localStorage.getItem('qf_state') || '{}'); } catch(e2) {}
-  }
-}
-
-function getState() { return _state; }
-
-function saveState(patch) {
-  Object.assign(_state, patch);
-  try { localStorage.setItem('qf_state', JSON.stringify(_state)); } catch(e) {}
-  clearTimeout(_saveTimer);
-  _saveTimer = setTimeout(() => pushStateToGitHub(), 800);
-}
-
 async function pushStateToGitHub() {
   showSaveIndicator('saving');
   try {
@@ -428,7 +397,7 @@ async function pushStateToGitHub() {
     const body = { message: 'dashboard state update', content, sha: _stateSha };
     const r = await fetch(GH_API_URL, {
       method: 'PUT',
-      headers: { 'Authorization': 'token ' + GH_TOKEN, 'Content-Type': 'application/json' },
+      headers: { 'Authorization': 'token ' + getGHToken(), 'Content-Type': 'application/json' },
       body: JSON.stringify(body)
     });
     if (r.ok) {
