@@ -309,12 +309,21 @@ function getGHToken() {
 
 async function loadStateFromCloud() {
   const token = getGHToken();
-  if (!token) { promptForToken(); return; }
+  if (!token) {
+    // render first with empty state, then prompt non-blocking
+    try { _state = JSON.parse(localStorage.getItem('qf_state') || '{}'); } catch(e) {}
+    setTimeout(() => promptForToken(), 500);
+    return;
+  }
   try {
     const r = await fetch(GH_API_URL, {
       headers: { 'Authorization': 'token ' + token }
     });
-    if (r.status === 401) { promptForToken(); return; }
+    if (r.status === 401) {
+      try { _state = JSON.parse(localStorage.getItem('qf_state') || '{}'); } catch(e) {}
+      setTimeout(() => promptForToken(), 500);
+      return;
+    }
     if (r.ok) {
       const data = await r.json();
       _stateSha = data.sha;
