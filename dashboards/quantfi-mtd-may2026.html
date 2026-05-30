@@ -296,52 +296,20 @@ function getCostRates() {
   return getState().costRates || DEFAULT_COST_RATES;
 }
 function saveCostRates(r) { saveState({costRates: r}); }
-// State stored in GitHub — reads via API, writes directly via GitHub API
-// Token stored in localStorage (never baked into file)
-const GH_API_URL = 'https://api.github.com/repos/kennyjen12/my-project/contents/dashboards/dashboard-state.json';
+// State stored on jsonblob.com — permanent, no auth, read/write from any browser
+const STATE_URL = 'https://jsonblob.com/api/jsonBlob/019e7654-f153-7ddc-aeee-4980f47aae92';
 let _state = {};
 let _saveTimer = null;
-let _stateSha = null;
-
-function getGHToken() {
-  return localStorage.getItem('qf_gh_token') || '';
-}
 
 async function loadStateFromCloud() {
-  const token = getGHToken();
-  if (!token) {
-    // render first with empty state, then prompt non-blocking
-    try { _state = JSON.parse(localStorage.getItem('qf_state') || '{}'); } catch(e) {}
-    setTimeout(() => promptForToken(), 500);
-    return;
-  }
   try {
-    const r = await fetch(GH_API_URL, {
-      headers: { 'Authorization': 'token ' + token }
-    });
-    if (r.status === 401) {
-      try { _state = JSON.parse(localStorage.getItem('qf_state') || '{}'); } catch(e) {}
-      setTimeout(() => promptForToken(), 500);
-      return;
-    }
+    const r = await fetch(STATE_URL);
     if (r.ok) {
-      const data = await r.json();
-      _stateSha = data.sha;
-      const content = atob(data.content.replace(/\n/g,''));
-      _state = JSON.parse(content || '{}');
+      _state = await r.json();
       localStorage.setItem('qf_state', JSON.stringify(_state));
     }
   } catch(e) {
     try { _state = JSON.parse(localStorage.getItem('qf_state') || '{}'); } catch(e2) {}
-  }
-}
-
-function promptForToken() {
-  const existing = localStorage.getItem('qf_gh_token');
-  const t = prompt('Enter GitHub token to enable saving (stored locally in your browser only):',  existing || '');
-  if (t && t.trim()) {
-    localStorage.setItem('qf_gh_token', t.trim());
-    location.reload();
   }
 }
 
@@ -351,24 +319,18 @@ function saveState(patch) {
   Object.assign(_state, patch);
   try { localStorage.setItem('qf_state', JSON.stringify(_state)); } catch(e) {}
   clearTimeout(_saveTimer);
-  _saveTimer = setTimeout(() => pushStateToGitHub(), 800);
+  _saveTimer = setTimeout(() => pushState(), 800);
 }
 
-async function pushStateToGitHub() {
-  const token = getGHToken();
-  if (!token) return;
+async function pushState() {
   showSaveIndicator('saving');
   try {
-    const content = btoa(unescape(encodeURIComponent(JSON.stringify(_state, null, 2))));
-    const body = { message: 'dashboard state update', content, sha: _stateSha };
-    const r = await fetch(GH_API_URL, {
+    const r = await fetch(STATE_URL, {
       method: 'PUT',
-      headers: { 'Authorization': 'token ' + token, 'Content-Type': 'application/json' },
-      body: JSON.stringify(body)
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(_state)
     });
     if (r.ok) {
-      const data = await r.json();
-      _stateSha = data.content.sha;
       showSaveIndicator('saved');
     } else {
       showSaveIndicator('error');
@@ -406,7 +368,7 @@ async function pushStateToGitHub() {
     const body = { message: 'dashboard state update', content, sha: _stateSha };
     const r = await fetch(GH_API_URL, {
       method: 'PUT',
-      headers: { 'Authorization': 'token ' + getGHToken(), 'Content-Type': 'application/json' },
+      headers: { 'Authorization': 'token ' + GH_TOKEN, 'Content-Type': 'application/json' },
       body: JSON.stringify(body)
     });
     if (r.ok) {
